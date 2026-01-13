@@ -13,6 +13,7 @@ interface CliOptions {
   weeklySummary: boolean;
   days?: number;
   start?: string;
+  fresh: boolean;
 }
 
 function parseArgs(args: string[]): CliOptions {
@@ -27,6 +28,7 @@ function parseArgs(args: string[]): CliOptions {
     weeklySummary: args.includes('--weekly-summary'),
     days: days && !isNaN(days) ? days : undefined,
     start,
+    fresh: args.includes('--fresh'),
   };
 }
 
@@ -42,6 +44,7 @@ OPTIONS:
   --verbose, -v     Enable debug logging to stderr
   --start DATE      Start date (YYYY-MM-DD). Defaults to now if only --days is set
   --days N          Number of days to fetch (required with --start, or standalone for last N days)
+  --fresh           Ignore state, process all messages, overwrite releases.md
   --weekly-summary  Generate a weekly summary instead of fetching new messages
 
 ENVIRONMENT VARIABLES:
@@ -104,10 +107,6 @@ async function run(options: CliOptions): Promise<void> {
   log('Initializing Slack client...', options.verbose);
   const slackClient = new SlackClient(config.slackToken, config.slackChannelId);
 
-  log('Loading state...', options.verbose);
-  const stateManager = new StateManager();
-  await stateManager.load();
-
   const { oldest, latest } = calculateTimeWindow(options.start, options.days);
   log(`Time window: ${oldest ? new Date(oldest).toISOString() : 'beginning'} to ${latest ? new Date(latest).toISOString() : 'now'}`, options.verbose);
 
@@ -115,27 +114,38 @@ async function run(options: CliOptions): Promise<void> {
   const allMessages = await slackClient.fetchMessages(oldest, latest);
   log(`Fetched ${allMessages.length} messages`, options.verbose);
 
-  const unprocessedMessages = stateManager.getUnprocessedMessages(allMessages);
-  log(`${unprocessedMessages.length} unprocessed messages`, options.verbose);
+  let messagesToProcess = allMessages;
 
-  if (unprocessedMessages.length === 0) {
-    log('No new messages to process', options.verbose);
+  if (!options.fresh) {
+    log('Loading state...', options.verbose);
+    const stateManager = new StateManager();
+    await stateManager.load();
+    messagesToProcess = stateManager.getUnprocessedMessages(allMessages);
+    log(`${messagesToProcess.length} unprocessed messages`, options.verbose);
+  }
+
+  if (messagesToProcess.length === 0) {
+    log('No messages to process', options.verbose);
     return;
   }
 
   log('Extracting releases with Claude...', options.verbose);
   const extractor = new ReleaseExtractor(config.anthropicApiKey);
-  const releases = await extractor.extractReleases(unprocessedMessages);
+  const releases = await extractor.extractReleases(messagesToProcess);
   log(`Extracted ${releases.length} releases`, options.verbose);
 
   if (releases.length > 0) {
-    log('Writing releases to markdown...', options.verbose);
-    const writer = new ReportWriter();
-    await writer.appendReleases(releases);
+    log('Writing releases to HTML...', options.verbose);
+    const writer = new ReportWriter(config.slackWorkspace, config.slackChannelId);
+    await writer.writeReleases(releases);
   }
 
-  log('Updating state...', options.verbose);
-  await stateManager.markProcessed(unprocessedMessages.map((m) => m.id));
+  if (!options.fresh) {
+    log('Updating state...', options.verbose);
+    const stateManager = new StateManager();
+    await stateManager.load();
+    await stateManager.markProcessed(messagesToProcess.map((m) => m.id));
+  }
 
   log('Done!', options.verbose);
 }

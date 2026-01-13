@@ -3,6 +3,7 @@ import 'dotenv/config';
 export interface Config {
   slackToken: string;
   anthropicApiKey: string;
+  slackWorkspace: string;
   slackChannelId: string;
 }
 
@@ -10,6 +11,7 @@ export function loadConfig(): Config {
   const values: Record<string, string | undefined> = {
     SLACK_TOKEN: process.env.SLACK_TOKEN,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    SLACK_WORKSPACE: process.env.SLACK_WORKSPACE,
     SLACK_CHANNEL_ID: process.env.SLACK_CHANNEL_ID,
   };
 
@@ -26,6 +28,7 @@ export function loadConfig(): Config {
   return {
     slackToken: values.SLACK_TOKEN as string,
     anthropicApiKey: values.ANTHROPIC_API_KEY as string,
+    slackWorkspace: values.SLACK_WORKSPACE as string,
     slackChannelId: values.SLACK_CHANNEL_ID as string,
   };
 }

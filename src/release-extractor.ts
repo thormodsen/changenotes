@@ -17,7 +17,7 @@ Identify any messages that mention:
 - Hotfixes or bug fixes that were deployed
 
 For each release found, extract:
-- date: The date in YYYY-MM-DD format (derive from message timestamp or mentioned date)
+- date: The date in YYYY-MM-DD format (use the date shown in brackets, e.g. [2025-12-01])
 - title: A brief title for the release
 - description: A summary of what was released/changed
 - sourceMessageId: The ID of the message containing this release
@@ -42,7 +42,10 @@ export class ReleaseExtractor {
     }
 
     const formattedMessages = messages
-      .map((m) => `[${m.id}] ${m.text}`)
+      .map((m) => {
+        const date = new Date(parseFloat(m.timestamp) * 1000).toISOString().split('T')[0];
+        return `[${m.id}] [${date}] ${m.text}`;
+      })
       .join('\n\n');
 
     const response = await this.client.messages.create({
