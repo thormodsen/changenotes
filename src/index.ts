@@ -5,16 +5,19 @@ import { SlackClient } from './slack-client.js';
 import { StateManager } from './state-manager.js';
 import { ReleaseExtractor } from './release-extractor.js';
 import { ReportWriter } from './report-writer.js';
+import { WeeklySummarizer } from './weekly-summarizer.js';
 
 interface CliOptions {
   help: boolean;
   verbose: boolean;
+  weeklySummary: boolean;
 }
 
 function parseArgs(args: string[]): CliOptions {
   return {
     help: args.includes('--help') || args.includes('-h'),
     verbose: args.includes('--verbose') || args.includes('-v'),
+    weeklySummary: args.includes('--weekly-summary'),
   };
 }
 
@@ -26,18 +29,22 @@ USAGE:
   slack-release-monitor [OPTIONS]
 
 OPTIONS:
-  --help, -h      Print this help message
-  --verbose, -v   Enable debug logging to stderr
+  --help, -h        Print this help message
+  --verbose, -v     Enable debug logging to stderr
+  --weekly-summary  Generate a weekly summary instead of fetching new messages
 
 ENVIRONMENT VARIABLES:
-  SLACK_TOKEN       Slack Bot OAuth token
+  SLACK_TOKEN       Slack Bot OAuth token (not required for --weekly-summary)
   ANTHROPIC_API_KEY Anthropic API key
-  SLACK_CHANNEL_ID  Slack channel ID to monitor
+  SLACK_CHANNEL_ID  Slack channel ID to monitor (not required for --weekly-summary)
 
 BEHAVIOR:
-  Fetches messages from the configured Slack channel, filters out already-
-  processed messages, uses Claude to extract release information, and
-  appends new releases to releases.md.
+  Default: Fetches messages from the configured Slack channel, filters out
+  already-processed messages, uses Claude to extract release information,
+  and appends new releases to releases.md.
+
+  --weekly-summary: Reads releases.md, filters to last 7 days, uses Claude
+  to summarize, and writes to weekly-summary-YYYY-MM-DD.md.
 `.trim());
 }
 
@@ -45,6 +52,21 @@ function log(message: string, verbose: boolean): void {
   if (verbose) {
     console.error(`[DEBUG] ${message}`);
   }
+}
+
+async function runWeeklySummary(options: CliOptions): Promise<void> {
+  log('Loading API key...', options.verbose);
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error('ANTHROPIC_API_KEY environment variable is required');
+  }
+
+  log('Generating weekly summary...', options.verbose);
+  const summarizer = new WeeklySummarizer(apiKey);
+  const outputPath = await summarizer.generateWeeklySummary();
+
+  log(`Summary written to ${outputPath}`, options.verbose);
+  console.log(`Weekly summary generated: ${outputPath}`);
 }
 
 async function run(options: CliOptions): Promise<void> {
@@ -96,7 +118,11 @@ async function main(): Promise<void> {
   }
 
   try {
-    await run(options);
+    if (options.weeklySummary) {
+      await runWeeklySummary(options);
+    } else {
+      await run(options);
+    }
     process.exit(0);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
