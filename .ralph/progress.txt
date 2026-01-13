@@ -1,0 +1,86 @@
+## Codebase Patterns
+- ESM project: use `"type": "module"` in package.json, `NodeNext` moduleResolution in tsconfig
+- ESLint 9 flat config: use `eslint.config.js` with typescript-eslint imports
+- Build output goes to `dist/`, source in `src/`
+
+---
+
+# Progress Log
+
+<!-- Iterations will append below this line -->
+
+## 2026-01-13 - US-001
+- Implemented full TypeScript project setup
+- Files created: package.json, tsconfig.json, eslint.config.js, .gitignore, src/index.ts
+- **Learnings:**
+  - ESLint 9 uses flat config (eslint.config.js), not .eslintrc
+  - typescript-eslint v8 works with ESLint 9
+  - Need `projectService: true` in ESLint for typed linting
+---
+
+## 2026-01-13 - US-002
+- Implemented config module for environment variable management
+- Files created: src/config.ts, .env.example
+- **Learnings:**
+  - ESLint forbids non-null assertions - use `as string` after validation instead
+  - dotenv/config auto-loads .env on import (no explicit config() call needed)
+---
+
+## 2026-01-13 - US-003
+- Implemented SlackClient class for fetching channel messages
+- Files created: src/slack-client.ts
+- **Learnings:**
+  - @slack/web-api WebClient handles auth via constructor token
+  - Pagination uses cursor from response_metadata.next_cursor
+  - Message ts field serves as both ID and timestamp
+  - Some messages may lack user field (bots, system messages) - default to empty string
+---
+
+## 2026-01-13 - US-004
+- Implemented StateManager class for tracking processed message IDs
+- Files created: src/state-manager.ts
+- **Learnings:**
+  - Use Set for O(1) lookup when filtering processed IDs
+  - Separate load() method allows async initialization without constructor async
+  - Import SlackMessage type for filtering method signature
+---
+
+## 2026-01-13 - US-005
+- Implemented ReleaseExtractor class for LLM-based release extraction
+- Files created: src/release-extractor.ts
+- **Learnings:**
+  - Anthropic SDK: use `new Anthropic({ apiKey })` for constructor
+  - Response content is an array of blocks - find the text block first
+  - JSON parsing should have fallback to empty array for robustness
+  - Request Claude to output only JSON for easier parsing
+---
+
+## 2026-01-13 - US-006
+- Implemented ReportWriter class for markdown changelog generation
+- Files created: src/report-writer.ts
+- **Learnings:**
+  - Use node:fs/promises for async file operations
+  - access() + readFile() combo handles file existence check gracefully
+  - Export Release type from release-extractor for type reuse
+---
+
+## 2026-01-13 - US-007
+- Implemented CLI interface with argument parsing
+- Files modified: src/index.ts
+- **Learnings:**
+  - Simple CLI parsing: just use `args.includes()` for boolean flags
+  - Debug logging goes to stderr (console.error) to keep stdout clean
+  - Orchestration flow: fetch -> filter -> extract -> write -> update state
+  - Early return when no unprocessed messages to avoid unnecessary API calls
+---
+
+## 2026-01-13 - US-008
+- Implemented weekly summary generation with --weekly-summary flag
+- Files created: src/weekly-summarizer.ts
+- Files modified: src/index.ts
+- **Learnings:**
+  - Markdown parsing: split by heading pattern, then extract date/title/description
+  - Date filtering: compare YYYY-MM-DD strings directly (lexicographic comparison works)
+  - Weekly summary mode only needs ANTHROPIC_API_KEY, not full Slack config
+  - Always write output file even for empty summary (consistent behavior)
+---

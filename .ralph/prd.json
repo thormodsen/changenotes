@@ -1,0 +1,119 @@
+{
+  "name": "Slack Release Monitor",
+  "branchName": "feature/slack-release-monitor",
+  "description": "CLI tool that fetches Slack messages, uses Claude to extract release info, and maintains a markdown changelog",
+  "stories": [
+    {
+      "id": "US-001",
+      "title": "Project Setup",
+      "description": "As a developer, I want a properly configured TypeScript project so that I can build the CLI tool.",
+      "priority": 1,
+      "passes": true,
+      "acceptanceCriteria": [
+        "TypeScript project with tsconfig.json configured for Node ESM",
+        "Package.json with dependencies: @anthropic-ai/sdk, @slack/web-api, dotenv",
+        "ESLint configured with TypeScript support",
+        "Build script in package.json that compiles to dist/",
+        ".gitignore covers node_modules, dist, .env, .release-monitor-state.json"
+      ]
+    },
+    {
+      "id": "US-002",
+      "title": "Configuration Management",
+      "description": "As a user, I want to configure the tool via environment variables so that I don't hardcode secrets.",
+      "priority": 2,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Config module reads SLACK_TOKEN from environment",
+        "Config module reads ANTHROPIC_API_KEY from environment",
+        "Config module reads SLACK_CHANNEL_ID from environment",
+        "Throws descriptive error listing missing variables when config incomplete",
+        ".env.example file with placeholder values and comments"
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Slack Message Fetching",
+      "description": "As a user, I want to fetch messages from a Slack channel so that I have raw data to process.",
+      "priority": 3,
+      "passes": true,
+      "acceptanceCriteria": [
+        "SlackClient class connects using token from config",
+        "fetchMessages() retrieves messages from configured channel",
+        "Handles Slack pagination via cursor to fetch all messages",
+        "Returns array of objects with: id, text, timestamp, userId",
+        "Throws clear error on auth failure or channel not found"
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Message State Tracking",
+      "description": "As a user, I want the tool to remember which messages it has processed so that I don't get duplicates.",
+      "priority": 4,
+      "passes": true,
+      "acceptanceCriteria": [
+        "StateManager reads/writes .release-monitor-state.json in cwd",
+        "State file stores array of processed message IDs",
+        "getUnprocessedMessages() filters out already-seen IDs",
+        "markProcessed() adds IDs and persists to file",
+        "Creates state file if it doesn't exist"
+      ]
+    },
+    {
+      "id": "US-005",
+      "title": "LLM Release Extraction",
+      "description": "As a user, I want Claude to analyze messages and extract release/change information so that I get signal from noise.",
+      "priority": 5,
+      "passes": true,
+      "acceptanceCriteria": [
+        "ReleaseExtractor class uses Anthropic SDK",
+        "extractReleases() sends messages to Claude with extraction prompt",
+        "Prompt instructs to identify: releases, deployments, shipped features, hotfixes",
+        "Returns array of: { date, title, description, sourceMessageId }",
+        "Returns empty array (not error) when no releases found in messages"
+      ]
+    },
+    {
+      "id": "US-006",
+      "title": "Markdown Report Generation",
+      "description": "As a user, I want releases appended to a markdown file so that I have a running log.",
+      "priority": 6,
+      "passes": true,
+      "acceptanceCriteria": [
+        "ReportWriter creates releases.md if it doesn't exist",
+        "appendReleases() adds new entries without overwriting existing",
+        "Each release formatted as: ## YYYY-MM-DD - Title\\n\\nDescription",
+        "Entries separated by blank lines for readability",
+        "No-op when given empty array of releases"
+      ]
+    },
+    {
+      "id": "US-007",
+      "title": "CLI Interface",
+      "description": "As a user, I want a simple CLI interface so that I can run the tool easily.",
+      "priority": 7,
+      "passes": true,
+      "acceptanceCriteria": [
+        "src/index.ts is the entry point with CLI argument parsing",
+        "--help flag prints usage information",
+        "--verbose flag enables debug logging to stderr",
+        "Default run: fetch -> filter -> extract -> append -> update state",
+        "Exit 0 on success, exit 1 on error with message to stderr"
+      ]
+    },
+    {
+      "id": "US-008",
+      "title": "Weekly Summary Generation",
+      "description": "As a user, I want to generate a weekly summary so that I can share a digest with my team.",
+      "priority": 8,
+      "passes": true,
+      "acceptanceCriteria": [
+        "--weekly-summary flag activates summary mode instead of normal fetch",
+        "Reads releases.md and parses entries from last 7 days",
+        "Sends parsed entries to Claude for summarization",
+        "Writes output to weekly-summary-YYYY-MM-DD.md",
+        "Summary includes: key highlights, common themes, total release count"
+      ]
+    }
+  ]
+}

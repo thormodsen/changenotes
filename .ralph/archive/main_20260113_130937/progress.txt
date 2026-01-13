@@ -1,0 +1,8 @@
+## Codebase Patterns
+<!-- Add reusable patterns here as you discover them -->
+
+---
+
+# Progress Log
+
+<!-- Iterations will append below this line -->

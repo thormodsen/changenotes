@@ -11,6 +11,10 @@ dist/
 # State file
 .release-monitor-state.json
 
+# Output files
+releases.html
+releases.md
+
 # IDE
 .idea/
 .vscode/
