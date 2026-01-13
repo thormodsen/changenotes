@@ -41,6 +41,30 @@ export class LangfuseClient {
   }
 
   /**
+   * Fetch a prompt with its config from Langfuse by name and version (optional).
+   * Returns an object with prompt text and config, or null if not found.
+   */
+  async getPromptWithConfig(
+    name: string,
+    version?: number
+  ): Promise<{ prompt: string; config: Record<string, unknown> } | null> {
+    if (!this.client) {
+      return null;
+    }
+
+    try {
+      const promptResult = await this.client.getPrompt(name, version);
+      return {
+        prompt: promptResult.prompt,
+        config: (promptResult.config as Record<string, unknown>) || {},
+      };
+    } catch (error) {
+      console.error(`Failed to fetch prompt "${name}" from Langfuse:`, error);
+      return null;
+    }
+  }
+
+  /**
    * Create a trace for an LLM call with observability.
    * Returns a trace object that can be used to log generations.
    */

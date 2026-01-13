@@ -29,10 +29,21 @@ Example output:
 
 Only output valid JSON, nothing else.`;
 
+interface OpenRouterConfig {
+  model?: string;
+  max_tokens?: number;
+  temperature?: number;
+  top_p?: number;
+  // OpenRouter-specific headers
+  httpReferer?: string;
+  xTitle?: string;
+}
+
 export class ReleaseExtractor {
   private apiKey: string;
   private readonly apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
-  private readonly model = 'anthropic/claude-sonnet-4';
+  private readonly defaultModel = 'anthropic/claude-sonnet-4';
+  private readonly defaultMaxTokens = 4096;
   private langfuse: LangfuseClient | null;
   private verbose: boolean;
 
@@ -47,16 +58,42 @@ export class ReleaseExtractor {
       return [];
     }
 
-    // Try to fetch prompt from Langfuse, fallback to default
+    // Try to fetch prompt and config from Langfuse, fallback to default
     let prompt = DEFAULT_EXTRACTION_PROMPT;
     let promptSource = 'default';
+    let config: OpenRouterConfig = {};
+
     if (this.langfuse?.isEnabled()) {
-      const langfusePrompt = await this.langfuse.getPrompt('release-extraction');
-      if (langfusePrompt) {
-        prompt = langfusePrompt;
+      const langfuseResult = await this.langfuse.getPromptWithConfig('release-extraction');
+      if (langfuseResult) {
+        prompt = langfuseResult.prompt;
         promptSource = 'Langfuse';
+        
+        // Extract config values
+        if (langfuseResult.config.model) {
+          config.model = String(langfuseResult.config.model);
+        }
+        if (langfuseResult.config.max_tokens) {
+          config.max_tokens = Number(langfuseResult.config.max_tokens);
+        }
+        if (langfuseResult.config.temperature !== undefined) {
+          config.temperature = Number(langfuseResult.config.temperature);
+        }
+        if (langfuseResult.config.top_p !== undefined) {
+          config.top_p = Number(langfuseResult.config.top_p);
+        }
+        if (langfuseResult.config.httpReferer) {
+          config.httpReferer = String(langfuseResult.config.httpReferer);
+        }
+        if (langfuseResult.config.xTitle) {
+          config.xTitle = String(langfuseResult.config.xTitle);
+        }
+
         if (this.verbose) {
           console.error(`[DEBUG] Using prompt from Langfuse (length: ${prompt.length} chars)`);
+          if (Object.keys(config).length > 0) {
+            console.error(`[DEBUG] Using config from Langfuse:`, config);
+          }
         }
       } else {
         if (this.verbose) {
@@ -78,43 +115,63 @@ export class ReleaseExtractor {
 
     const userContent = `${prompt}\n\nMessages to analyze:\n\n${formattedMessages}`;
 
+    // Use config values or defaults (needed for trace)
+    const model = config.model || this.defaultModel;
+    const maxTokens = config.max_tokens || this.defaultMaxTokens;
+
     // Create Langfuse trace if enabled
     const trace = this.langfuse?.isEnabled()
       ? this.langfuse.trace('release-extraction', {
           messageCount: messages.length,
-          model: this.model,
+          model,
         })
       : null;
 
     const generation = trace
       ? trace.generation({
           name: 'extract-releases',
-          model: this.model,
+          model,
           modelParameters: {
-            max_tokens: 4096,
+            max_tokens: maxTokens,
+            ...(config.temperature !== undefined && { temperature: config.temperature }),
+            ...(config.top_p !== undefined && { top_p: config.top_p }),
           },
           input: userContent,
         })
       : null;
 
+    // Build request body with config values
+    const requestBody: Record<string, unknown> = {
+      model,
+      max_tokens: maxTokens,
+      messages: [
+        {
+          role: 'user',
+          content: userContent,
+        },
+      ],
+    };
+
+    // Add optional parameters if present in config
+    if (config.temperature !== undefined) {
+      requestBody.temperature = config.temperature;
+    }
+    if (config.top_p !== undefined) {
+      requestBody.top_p = config.top_p;
+    }
+
+    // Build headers
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${this.apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': config.httpReferer || 'https://github.com/thormodsen/changelog-creator',
+      'X-Title': config.xTitle || 'Slack Release Monitor',
+    };
+
     const response = await fetch(this.apiUrl, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://github.com/thormodsen/changelog-creator',
-        'X-Title': 'Slack Release Monitor',
-      },
-      body: JSON.stringify({
-        model: this.model,
-        max_tokens: 4096,
-        messages: [
-          {
-            role: 'user',
-            content: userContent,
-          },
-        ],
-      }),
+      headers,
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -192,6 +249,8 @@ export class ReleaseExtractor {
           metadata: {
             releaseCount: result.length,
             promptSource,
+            model,
+            maxTokens,
           },
         });
       }
