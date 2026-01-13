@@ -1,0 +1,31 @@
+{
+  "name": "slack-release-monitor",
+  "version": "0.1.0",
+  "description": "CLI tool that fetches Slack messages, uses Claude to extract release info, and maintains a markdown changelog",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "slack-release-monitor": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@slack/web-api": "^7.8.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "@types/node": "^22.10.7",
+    "eslint": "^9.18.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
