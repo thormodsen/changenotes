@@ -6,6 +6,7 @@ import { StateManager } from './state-manager.js';
 import { ReleaseExtractor } from './release-extractor.js';
 import { ReportWriter } from './report-writer.js';
 import { WeeklySummarizer } from './weekly-summarizer.js';
+import { LangfuseClient } from './langfuse-client.js';
 
 interface CliOptions {
   help: boolean;
@@ -92,9 +93,27 @@ async function runWeeklySummary(options: CliOptions): Promise<void> {
     throw new Error('OPENROUTER_API_KEY environment variable is required');
   }
 
+  // Load config for Langfuse (optional)
+  let langfuse: LangfuseClient | null = null;
+  try {
+    const config = loadConfig();
+    langfuse = new LangfuseClient(config);
+    if (langfuse.isEnabled()) {
+      log('Langfuse enabled for prompt management and observability', options.verbose);
+    }
+  } catch {
+    // Config might fail if Slack vars are missing, but that's OK for weekly summary
+    log('Langfuse not configured (optional)', options.verbose);
+  }
+
   log('Generating weekly summary...', options.verbose);
-  const summarizer = new WeeklySummarizer(apiKey);
+  const summarizer = new WeeklySummarizer(apiKey, 'releases.md', langfuse);
   const outputPath = await summarizer.generateWeeklySummary();
+
+  // Shutdown Langfuse to flush events
+  if (langfuse) {
+    await langfuse.shutdown();
+  }
 
   log(`Summary written to ${outputPath}`, options.verbose);
   console.log(`Weekly summary generated: ${outputPath}`);
@@ -103,6 +122,12 @@ async function runWeeklySummary(options: CliOptions): Promise<void> {
 async function run(options: CliOptions): Promise<void> {
   log('Loading configuration...', options.verbose);
   const config = loadConfig();
+
+  // Initialize Langfuse (optional)
+  const langfuse = new LangfuseClient(config);
+  if (langfuse.isEnabled()) {
+    log('Langfuse enabled for prompt management and observability', options.verbose);
+  }
 
   log('Initializing Slack client...', options.verbose);
   const slackClient = new SlackClient(config.slackToken, config.slackChannelId);
@@ -126,11 +151,15 @@ async function run(options: CliOptions): Promise<void> {
 
   if (messagesToProcess.length === 0) {
     log('No messages to process', options.verbose);
+    // Shutdown Langfuse before returning
+    if (langfuse.isEnabled()) {
+      await langfuse.shutdown();
+    }
     return;
   }
 
   log('Extracting releases with Claude via OpenRouter...', options.verbose);
-  const extractor = new ReleaseExtractor(config.openRouterApiKey);
+  const extractor = new ReleaseExtractor(config.openRouterApiKey, langfuse, options.verbose);
   const releases = await extractor.extractReleases(messagesToProcess);
   log(`Extracted ${releases.length} releases`, options.verbose);
 
@@ -145,6 +174,11 @@ async function run(options: CliOptions): Promise<void> {
     const stateManager = new StateManager();
     await stateManager.load();
     await stateManager.markProcessed(messagesToProcess.map((m) => m.id));
+  }
+
+  // Shutdown Langfuse to flush events
+  if (langfuse.isEnabled()) {
+    await langfuse.shutdown();
   }
 
   log('Done!', options.verbose);

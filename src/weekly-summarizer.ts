@@ -1,4 +1,5 @@
 import { readFile, writeFile, access } from 'node:fs/promises';
+import type { LangfuseClient } from './langfuse-client.js';
 
 interface ParsedRelease {
   date: string;
@@ -6,7 +7,7 @@ interface ParsedRelease {
   description: string;
 }
 
-const SUMMARY_PROMPT = `You are summarizing a week of software releases for a team digest.
+const DEFAULT_SUMMARY_PROMPT = `You are summarizing a week of software releases for a team digest.
 
 Given the following releases, create a concise summary that includes:
 1. Key Highlights: The most significant releases or changes (2-4 bullet points)
@@ -22,10 +23,12 @@ export class WeeklySummarizer {
   private releasesPath: string;
   private readonly apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
   private readonly model = 'anthropic/claude-sonnet-4';
+  private langfuse: LangfuseClient | null;
 
-  constructor(apiKey: string, releasesPath: string = 'releases.md') {
+  constructor(apiKey: string, releasesPath: string = 'releases.md', langfuse?: LangfuseClient | null) {
     this.apiKey = apiKey;
     this.releasesPath = releasesPath;
+    this.langfuse = langfuse ?? null;
   }
 
   async generateWeeklySummary(): Promise<string> {
@@ -106,9 +109,39 @@ export class WeeklySummarizer {
   private async summarizeWithClaude(
     releases: ParsedRelease[]
   ): Promise<string> {
+    // Try to fetch prompt from Langfuse, fallback to default
+    let prompt = DEFAULT_SUMMARY_PROMPT;
+    if (this.langfuse?.isEnabled()) {
+      const langfusePrompt = await this.langfuse.getPrompt('weekly-summary');
+      if (langfusePrompt) {
+        prompt = langfusePrompt;
+      }
+    }
+
     const formattedReleases = releases
       .map((r) => `## ${r.date} - ${r.title}\n\n${r.description}`)
       .join('\n\n');
+
+    const userContent = `${prompt}\n\nReleases from the last 7 days:\n\n${formattedReleases}`;
+
+    // Create Langfuse trace if enabled
+    const trace = this.langfuse?.isEnabled()
+      ? this.langfuse.trace('weekly-summary', {
+          releaseCount: releases.length,
+          model: this.model,
+        })
+      : null;
+
+    const generation = trace
+      ? trace.generation({
+          name: 'summarize-releases',
+          model: this.model,
+          modelParameters: {
+            max_tokens: 2048,
+          },
+          input: userContent,
+        })
+      : null;
 
     const response = await fetch(this.apiUrl, {
       method: 'POST',
@@ -124,7 +157,7 @@ export class WeeklySummarizer {
         messages: [
           {
             role: 'user',
-            content: `${SUMMARY_PROMPT}\n\nReleases from the last 7 days:\n\n${formattedReleases}`,
+            content: userContent,
           },
         ],
       }),
@@ -132,6 +165,12 @@ export class WeeklySummarizer {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
+      if (generation) {
+        generation.end({
+          level: 'ERROR',
+          statusMessage: `OpenRouter API error: ${response.status} ${response.statusText}`,
+        });
+      }
       throw new Error(`OpenRouter API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
@@ -139,7 +178,25 @@ export class WeeklySummarizer {
     const textContent = data.choices?.[0]?.message?.content;
 
     if (!textContent) {
+      if (generation) {
+        generation.end({
+          level: 'WARNING',
+          statusMessage: 'No content in response',
+        });
+      }
       return this.formatEmptySummary();
+    }
+
+    // Log the generation to Langfuse
+    if (generation) {
+      generation.end({
+        output: textContent,
+        usage: {
+          input: data.usage?.prompt_tokens ?? 0,
+          output: data.usage?.completion_tokens ?? 0,
+          total: data.usage?.total_tokens ?? 0,
+        },
+      });
     }
 
     return `# Weekly Summary\n\n${textContent}`;
