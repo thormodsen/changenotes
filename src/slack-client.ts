@@ -14,10 +14,34 @@ export interface SlackMessage {
 export class SlackClient {
   private client: WebClient;
   private channelId: string;
+  private verbose: boolean;
+  private botInfoCache: Map<string, { name?: string }> = new Map();
 
-  constructor(token: string, channelId: string) {
+  constructor(token: string, channelId: string, verbose: boolean = false) {
     this.client = new WebClient(token);
     this.channelId = channelId;
+    this.verbose = verbose;
+  }
+
+  private async getBotInfo(botId: string): Promise<{ name?: string } | null> {
+    if (this.botInfoCache.has(botId)) {
+      return this.botInfoCache.get(botId)!;
+    }
+
+    try {
+      const response = await this.client.bots.info({ bot: botId });
+      if (response.ok && response.bot) {
+        const botInfo = {
+          name: response.bot.name,
+        };
+        this.botInfoCache.set(botId, botInfo);
+        return botInfo;
+      }
+    } catch (error) {
+      // If bot info lookup fails, cache null to avoid repeated lookups
+      this.botInfoCache.set(botId, {});
+    }
+    return null;
   }
 
   async fetchMessages(oldest?: number, latest?: number): Promise<SlackMessage[]> {
@@ -45,19 +69,59 @@ export class SlackClient {
           const appId = msg.app_id || '';
           const botId = msg.bot_id || '';
           
-          // Check if message should be filtered
-          const isBitrise = username.includes('bitrise') || 
-                           text.includes('bitrise') ||
-                           appId.includes('bitrise') ||
-                           botId.includes('bitrise');
+          // Get bot name if bot_id is present
+          let botName = '';
+          if (botId) {
+            const botInfo = await this.getBotInfo(botId);
+            botName = botInfo?.name?.toLowerCase() || '';
+          }
           
-          const isAutomatedReleaseNotes = username.includes('automated release notes') ||
-                                         username.includes('automated-release-notes') ||
-                                         text.includes('automated release notes') ||
-                                         appId.includes('automated-release-notes') ||
-                                         botId.includes('automated-release-notes');
+          // Known Automated Release Notes bot ID
+          const isKnownAutomatedReleaseNotesBot = botId === 'B085LB91R52';
+          
+          // Check if message should be filtered
+          const bitriseChecks = {
+            username: username.includes('bitrise'),
+            text: text.includes('bitrise'),
+            appId: appId.includes('bitrise'),
+            botId: botId.includes('bitrise'),
+            botName: botName.includes('bitrise'),
+          };
+          const isBitrise = bitriseChecks.username || bitriseChecks.text || bitriseChecks.appId || bitriseChecks.botId || bitriseChecks.botName;
+          
+          const automatedReleaseNotesChecks = {
+            usernameExact: username.includes('automated release notes'),
+            usernameHyphen: username.includes('automated-release-notes'),
+            text: text.includes('automated release notes'),
+            appId: appId.includes('automated-release-notes'),
+            botId: botId.includes('automated-release-notes'),
+            botName: botName.includes('automated release notes') || botName.includes('automated-release-notes'),
+            knownBotId: isKnownAutomatedReleaseNotesBot,
+          };
+          const isAutomatedReleaseNotes = automatedReleaseNotesChecks.usernameExact ||
+                                         automatedReleaseNotesChecks.usernameHyphen ||
+                                         automatedReleaseNotesChecks.text ||
+                                         automatedReleaseNotesChecks.appId ||
+                                         automatedReleaseNotesChecks.botId ||
+                                         automatedReleaseNotesChecks.botName ||
+                                         automatedReleaseNotesChecks.knownBotId;
           
           if (isBitrise || isAutomatedReleaseNotes) {
+            // Only log filtered messages in verbose mode
+            if (this.verbose) {
+              console.error(`[FILTERED] Message ${msg.ts}:`);
+              console.error(`  username: "${msg.username || '(none)'}"`);
+              console.error(`  app_id: "${appId || '(none)'}"`);
+              console.error(`  bot_id: "${botId || '(none)'}"`);
+              console.error(`  bot_name: "${botName || '(none)'}"`);
+              console.error(`  text (first 100 chars): "${msg.text.substring(0, 100)}"`);
+              if (isBitrise) {
+                console.error(`  Bitrise checks:`, bitriseChecks, `-> FILTERED (Bitrise)`);
+              }
+              if (isAutomatedReleaseNotes) {
+                console.error(`  Automated Release Notes checks:`, automatedReleaseNotesChecks, `-> FILTERED (Automated Release Notes)`);
+              }
+            }
             continue;
           }
 

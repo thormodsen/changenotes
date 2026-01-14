@@ -130,7 +130,7 @@ async function run(options: CliOptions): Promise<void> {
   }
 
   log('Initializing Slack client...', options.verbose);
-  const slackClient = new SlackClient(config.slackToken, config.slackChannelId);
+  const slackClient = new SlackClient(config.slackToken, config.slackChannelId, options.verbose);
 
   const { oldest, latest } = calculateTimeWindow(options.start, options.days);
   log(`Time window: ${oldest ? new Date(oldest).toISOString() : 'beginning'} to ${latest ? new Date(latest).toISOString() : 'now'}`, options.verbose);
