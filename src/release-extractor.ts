@@ -89,9 +89,6 @@ export class ReleaseExtractor {
 
       if (this.verbose) {
         console.error(`[DEBUG] Using prompt from Langfuse (length: ${prompt.length} chars)`);
-        if (Object.keys(config).length > 0) {
-          console.error(`[DEBUG] Using config from Langfuse:`, config);
-        }
       }
     } else {
       throw new Error(
@@ -118,16 +115,15 @@ export class ReleaseExtractor {
       const userContent = `${prompt}\n\nMessage to analyze:\n\n${formattedMessage}`;
 
       if (this.verbose) {
-        const previewLimit = 2000;
-        const preview = userContent.length > previewLimit
-          ? `${userContent.slice(0, previewLimit)}\n\n... [truncated ${userContent.length - previewLimit} chars]`
-          : userContent;
         console.error(`[DEBUG] Processing message ${message.id} (${index + 1}/${messages.length})`);
         console.error(`[DEBUG] LLM input length: ${userContent.length} chars`);
-        console.error(`[DEBUG] LLM input preview:\n${preview}`);
       }
 
-      if (process.env.DUMP_LLM_INPUT === 'true') {
+      const dumpAllInputs = process.env.DUMP_LLM_INPUT === 'true';
+      const dumpForId = process.env.DUMP_LLM_INPUT_FOR_ID;
+      const shouldDumpInput = dumpAllInputs || (dumpForId && dumpForId === message.id);
+
+      if (shouldDumpInput) {
         const safeMessageId = message.id.replace(/[^a-zA-Z0-9_-]/g, '_');
         const filename = `llm-input-${safeMessageId}.txt`;
         await writeFile(filename, userContent, 'utf-8');
@@ -206,10 +202,6 @@ export class ReleaseExtractor {
           });
         }
         continue;
-      }
-
-      if (this.verbose) {
-        console.error(`[DEBUG] LLM response (first 500 chars): ${textContent.substring(0, 500)}`);
       }
 
       if (generation) {

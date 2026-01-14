@@ -45,7 +45,36 @@ export class SlackClient {
     return null;
   }
 
-  private async fetchThreadReplies(channelId: string, threadTs: string): Promise<SlackMessage[]> {
+  private toSlackMessage(msg: {
+    ts?: string;
+    text?: string;
+    user?: string;
+    username?: string;
+    app_id?: string;
+    bot_id?: string;
+    subtype?: string;
+  }): SlackMessage | null {
+    if (!msg.ts || !msg.text) {
+      return null;
+    }
+
+    return {
+      id: msg.ts,
+      text: msg.text,
+      timestamp: msg.ts,
+      userId: msg.user ?? '',
+      username: msg.username,
+      appId: msg.app_id,
+      botId: msg.bot_id,
+      subtype: msg.subtype,
+    };
+  }
+
+  private async fetchThreadMessages(
+    channelId: string,
+    threadTs: string
+  ): Promise<{ parent: SlackMessage | null; replies: SlackMessage[] }> {
+    let parent: SlackMessage | null = null;
     const replies: SlackMessage[] = [];
     let cursor: string | undefined;
 
@@ -60,45 +89,39 @@ export class SlackClient {
 
         if (!response.ok) {
           if (this.verbose) {
-            console.error(`[DEBUG] Failed to fetch thread replies for ${threadTs}: ${response.error}`);
+            console.error(`[DEBUG] Failed to fetch thread messages for ${threadTs}: ${response.error}`);
           }
           break;
         }
 
         for (const msg of response.messages ?? []) {
-          // Skip the parent message (it has the same ts as thread_ts)
-          if (msg.ts === threadTs) {
+          const normalized = this.toSlackMessage(msg);
+          if (!normalized) {
             continue;
           }
 
-          if (msg.ts && msg.text) {
-            replies.push({
-              id: msg.ts,
-              text: msg.text,
-              timestamp: msg.ts,
-              userId: msg.user ?? '',
-              username: msg.username,
-              appId: msg.app_id,
-              botId: msg.bot_id,
-              subtype: msg.subtype,
-            });
+          if (msg.ts === threadTs) {
+            parent = normalized;
+          } else {
+            replies.push(normalized);
           }
         }
 
         cursor = response.response_metadata?.next_cursor;
       } catch (error) {
         if (this.verbose) {
-          console.error(`[DEBUG] Error fetching thread replies for ${threadTs}:`, error);
+          console.error(`[DEBUG] Error fetching thread messages for ${threadTs}:`, error);
         }
         break;
       }
     } while (cursor);
 
-    return replies;
+    return { parent, replies };
   }
 
   async fetchMessages(oldest?: number, latest?: number): Promise<SlackMessage[]> {
-    const messages: SlackMessage[] = [];
+    const messagesById = new Map<string, SlackMessage>();
+    const threadsToHydrate = new Set<string>();
     let cursor: string | undefined;
 
     do {
@@ -178,35 +201,59 @@ export class SlackClient {
             continue;
           }
 
-          // Fetch thread replies if this message has a thread
-          let threadReplies: SlackMessage[] | undefined;
-          if (msg.reply_count && msg.reply_count > 0) {
-            if (this.verbose) {
-              console.error(`[DEBUG] Fetching ${msg.reply_count} thread replies for message ${msg.ts}`);
-            }
-            threadReplies = await this.fetchThreadReplies(this.channelId, msg.ts);
-            if (this.verbose && threadReplies.length > 0) {
-              console.error(`[DEBUG] Fetched ${threadReplies.length} thread replies for message ${msg.ts}`);
-            }
+          if (msg.thread_ts && msg.thread_ts !== msg.ts) {
+            threadsToHydrate.add(msg.thread_ts);
+            continue;
           }
 
-          messages.push({
-            id: msg.ts,
-            text: msg.text,
-            timestamp: msg.ts,
-            userId: msg.user ?? '',
-            username: msg.username,
-            appId: msg.app_id,
-            botId: msg.bot_id,
-            subtype: msg.subtype,
-            threadReplies,
-          });
+          if (msg.reply_count && msg.reply_count > 0) {
+            threadsToHydrate.add(msg.ts);
+          }
+
+          const normalized = this.toSlackMessage(msg);
+          if (normalized) {
+            messagesById.set(normalized.id, normalized);
+          }
         }
       }
 
       cursor = response.response_metadata?.next_cursor;
     } while (cursor);
 
-    return messages;
+    for (const threadTs of threadsToHydrate) {
+      if (this.verbose) {
+        console.error(`[DEBUG] Fetching thread messages for ${threadTs}`);
+      }
+      const { parent, replies } = await this.fetchThreadMessages(this.channelId, threadTs);
+      if (!parent) {
+        if (this.verbose) {
+          console.error(`[DEBUG] Thread ${threadTs} missing parent message`);
+        }
+        continue;
+      }
+
+      const existing = messagesById.get(parent.id);
+      const replyMap = new Map<string, SlackMessage>();
+      for (const reply of replies) {
+        replyMap.set(reply.id, reply);
+      }
+      if (existing?.threadReplies) {
+        for (const reply of existing.threadReplies) {
+          replyMap.set(reply.id, reply);
+        }
+      }
+
+      const merged = existing ?? parent;
+      merged.threadReplies = Array.from(replyMap.values()).sort((a, b) => {
+        return parseFloat(a.timestamp) - parseFloat(b.timestamp);
+      });
+      messagesById.set(merged.id, merged);
+
+      if (this.verbose && merged.threadReplies.length > 0) {
+        console.error(`[DEBUG] Fetched ${merged.threadReplies.length} thread replies for message ${merged.id}`);
+      }
+    }
+
+    return Array.from(messagesById.values());
   }
 }
