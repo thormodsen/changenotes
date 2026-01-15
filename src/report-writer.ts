@@ -23,6 +23,11 @@ export class ReportWriter {
     await writeFile(this.filepath, content, 'utf-8');
   }
 
+  async writeReleasesFromStore(store: { getAllReleases(): Promise<Release[]> }): Promise<void> {
+    const releases = await store.getAllReleases();
+    await this.writeReleases(releases);
+  }
+
   private buildSlackUrl(messageId: string): string {
     const timestamp = messageId.replace('.', '');
     return `https://${this.workspace}.slack.com/archives/${this.channelId}/p${timestamp}`;
@@ -58,19 +63,9 @@ export class ReportWriter {
       return platforms;
     };
 
-    // Determine feature type from title/description
-    const getFeatureType = (title: string, description: string): string => {
-      const text = (title + ' ' + description).toLowerCase();
-      if (/new|feature|added|introduced/i.test(text) && !/fix|bug|improvement/i.test(text)) {
-        return 'New Feature';
-      }
-      if (/improvement|enhanced|improved|better/i.test(text)) {
-        return 'Improvement';
-      }
-      if (/fix|bug|issue|resolved|fixed/i.test(text)) {
-        return 'Bug Fix';
-      }
-      return 'Update';
+    // Use type from release data (determined by LLM)
+    const getFeatureType = (release: Release): string => {
+      return release.type || 'Update';
     };
 
     const sections = Array.from(releasesByDate.entries())
@@ -81,7 +76,7 @@ export class ReportWriter {
           .map((r) => {
             const url = this.buildSlackUrl(r.sourceMessageId);
             const platforms = extractPlatforms(r.title);
-            const featureType = getFeatureType(r.title, r.description);
+            const featureType = getFeatureType(r);
             const platformTag = platforms.length > 0 ? platforms.join(' · ') : null;
 
             const whyThisMattersSection = r.whyThisMatters

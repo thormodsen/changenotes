@@ -5,6 +5,7 @@ import { SlackClient } from './slack-client.js';
 import { StateManager } from './state-manager.js';
 import { ReleaseExtractor } from './release-extractor.js';
 import { ReportWriter } from './report-writer.js';
+import { ReleasesStore } from './releases-store.js';
 import { WeeklySummarizer } from './weekly-summarizer.js';
 import { LangfuseClient } from './langfuse-client.js';
 
@@ -160,15 +161,24 @@ async function run(options: CliOptions): Promise<void> {
 
   log('Extracting releases with Claude via OpenRouter...', options.verbose);
   const extractor = new ReleaseExtractor(config.openRouterApiKey, langfuse, options.verbose);
+  const store = new ReleasesStore();
   const writer = new ReportWriter(config.slackWorkspace, config.slackChannelId);
-  let lastWrittenCount = 0;
+  
   const releases = await extractor.extractReleases(messagesToProcess, async ({ releases: current }) => {
-    if (current.length > 0 && current.length !== lastWrittenCount) {
-      log('Writing releases to HTML...', options.verbose);
-      await writer.writeReleases(current);
-      lastWrittenCount = current.length;
+    if (current.length > 0) {
+      const allReleases = await store.getAllReleases();
+      const currentIds = new Set(current.map((r) => r.sourceMessageId));
+      const newReleases = current.filter((r) => !allReleases.some((existing) => existing.sourceMessageId === r.sourceMessageId));
+      
+      if (newReleases.length > 0) {
+        await store.addReleases(newReleases);
+        const updated = await store.getAllReleases();
+        log(`Added ${newReleases.length} new release(s), regenerating HTML...`, options.verbose);
+        await writer.writeReleases(updated);
+      }
     }
   });
+  
   log(`Extracted ${releases.length} releases`, options.verbose);
 
   if (!options.fresh) {

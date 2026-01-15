@@ -8,6 +8,7 @@ export interface Release {
   title: string;
   description: string;
   sourceMessageId: string;
+  type: 'New Feature' | 'Improvement' | 'Bug Fix' | 'Deprecation' | 'Rollback' | 'Update';
   whyThisMatters?: string;
   impact?: string;
 }
