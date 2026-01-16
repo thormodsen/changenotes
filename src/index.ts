@@ -159,12 +159,36 @@ async function run(options: CliOptions): Promise<void> {
     return;
   }
 
-  log('Extracting releases with Claude via OpenRouter...', options.verbose);
-  const extractor = new ReleaseExtractor(config.openRouterApiKey, langfuse, options.verbose);
   const store = new ReleasesStore();
+  let messagesToExtract = messagesToProcess;
+  
+  if (!options.fresh) {
+    const existingReleases = await store.getAllReleases();
+    const existingMessageIds = new Set(existingReleases.map((r) => r.sourceMessageId));
+    
+    messagesToExtract = messagesToProcess.filter((msg) => !existingMessageIds.has(msg.id));
+    const skippedFromStore = messagesToProcess.length - messagesToExtract.length;
+    
+    if (skippedFromStore > 0) {
+      log(`Skipping ${skippedFromStore} message(s) already in store`, options.verbose);
+    }
+
+    if (messagesToExtract.length === 0) {
+      log('All messages already processed and stored', options.verbose);
+      if (langfuse.isEnabled()) {
+        await langfuse.shutdown();
+      }
+      return;
+    }
+  } else {
+    log('Fresh mode: processing all messages (ignoring store)', options.verbose);
+  }
+
+  log(`Extracting releases with Claude via OpenRouter for ${messagesToExtract.length} message(s)...`, options.verbose);
+  const extractor = new ReleaseExtractor(config.openRouterApiKey, langfuse, options.verbose);
   const writer = new ReportWriter(config.slackWorkspace, config.slackChannelId);
   
-  const releases = await extractor.extractReleases(messagesToProcess, async ({ releases: current }) => {
+  const releases = await extractor.extractReleases(messagesToExtract, async ({ releases: current }) => {
     if (current.length > 0) {
       const allReleases = await store.getAllReleases();
       const currentIds = new Set(current.map((r) => r.sourceMessageId));
