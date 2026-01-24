@@ -37,40 +37,170 @@ interface Release {
 type PresetKey = '7days' | '30days' | 'month'
 type Tab = 'messages' | 'releases' | 'public'
 
-function extractLinks(text: string): Array<{ url: string; label?: string; domain: string }> {
-  const links: Array<{ url: string; label?: string; domain: string }> = []
+const emojiMap: Record<string, string> = {
+  rocket: '🚀',
+  tada: '🎉',
+  sparkles: '✨',
+  bug: '🐛',
+  fire: '🔥',
+  package: '📦',
+  wrench: '🔧',
+  hammer: '🔨',
+  construction: '🚧',
+  warning: '⚠️',
+  x: '❌',
+  check: '✅',
+  white_check_mark: '✅',
+  heavy_check_mark: '✔️',
+  arrow_up: '⬆️',
+  arrow_down: '⬇️',
+  art: '🎨',
+  zap: '⚡',
+  memo: '📝',
+  pencil: '✏️',
+  book: '📖',
+  bookmark: '🔖',
+  globe_with_meridians: '🌐',
+  link: '🔗',
+  lock: '🔒',
+  unlock: '🔓',
+  key: '🔑',
+  mag: '🔍',
+  bulb: '💡',
+  bell: '🔔',
+  loudspeaker: '📢',
+  mega: '📣',
+  chart_with_upwards_trend: '📈',
+  chart_with_downwards_trend: '📉',
+  bar_chart: '📊',
+  calendar: '📅',
+  hourglass: '⌛',
+  hourglass_flowing_sand: '⏳',
+  watch: '⌚',
+  alarm_clock: '⏰',
+  stopwatch: '⏱️',
+  timer_clock: '⏲️',
+  star: '⭐',
+  star2: '🌟',
+  dizzy: '💫',
+  boom: '💥',
+  collision: '💥',
+  muscle: '💪',
+  clap: '👏',
+  pray: '🙏',
+  handshake: '🤝',
+  thumbsup: '👍',
+  thumbsdown: '👎',
+  ok_hand: '👌',
+  point_right: '👉',
+  point_left: '👈',
+  point_up: '☝️',
+  point_down: '👇',
+  raised_hand: '✋',
+  wave: '👋',
+  eyes: '👀',
+  brain: '🧠',
+  heart: '❤️',
+  broken_heart: '💔',
+  green_heart: '💚',
+  blue_heart: '💙',
+  yellow_heart: '💛',
+  purple_heart: '💜',
+  black_heart: '🖤',
+  white_heart: '🤍',
+  orange_heart: '🧡',
+  man_and_woman_holding_hands: '👫',
+  woman_and_man_holding_hands: '👫',
+  couple: '👫',
+  two_men_holding_hands: '👬',
+  two_women_holding_hands: '👭',
+  busts_in_silhouette: '👥',
+  family: '👪',
+  man: '👨',
+  woman: '👩',
+  boy: '👦',
+  girl: '👧',
+  ladybug: '🐞',
+  iphone: '📱',
+  computer: '💻',
+  phone: '📞',
+  email: '📧',
+  inbox_tray: '📥',
+  outbox_tray: '📤',
+}
 
-  // Match Slack's <url|label> or <url> format
-  const slackLinkRegex = /<(https?:\/\/[^\s|>]+)(?:\|([^>]+))?>/g
-  let match
+function convertEmojis(text: string): string {
+  return text.replace(/:([a-z0-9_+-]+):/g, (match, code) => {
+    return emojiMap[code] || match
+  })
+}
 
-  while ((match = slackLinkRegex.exec(text)) !== null) {
-    const url = match[1]
-    const label = match[2]
-    try {
-      const domain = new URL(url).hostname
-      links.push({ url, label, domain })
-    } catch {
-      // Invalid URL, skip
-    }
-  }
+function formatSlackText(text: string): JSX.Element[] {
+  const lines = text.split('\n')
+  const elements: JSX.Element[] = []
 
-  // Also match plain URLs not in Slack format
-  const plainUrlRegex = /(?<!<)(https?:\/\/[^\s<>]+)(?!>)/g
-  while ((match = plainUrlRegex.exec(text)) !== null) {
-    const url = match[1]
-    // Skip if already captured by Slack format
-    if (!links.some((l) => l.url === url)) {
-      try {
-        const domain = new URL(url).hostname
-        links.push({ url, domain })
-      } catch {
-        // Invalid URL, skip
+  lines.forEach((line, lineIdx) => {
+    // Convert emoji codes to actual emojis first
+    let formattedLine = convertEmojis(line)
+
+    // Process the line to handle both links and bold text
+    const parts: (string | JSX.Element)[] = []
+    let lastIndex = 0
+    let partKey = 0
+
+    // Combined regex for Slack links and bold text
+    // Matches: <url|label> or <url> or *bold*
+    const combinedRegex = /<(https?:\/\/[^\s|>]+)(?:\|([^>]+))?>|\*([^*]+)\*/g
+    let match
+
+    while ((match = combinedRegex.exec(formattedLine)) !== null) {
+      // Add text before the match
+      if (match.index > lastIndex) {
+        parts.push(formattedLine.substring(lastIndex, match.index))
       }
-    }
-  }
 
-  return links
+      if (match[1]) {
+        // This is a link: <url|label> or <url>
+        const url = match[1]
+        const label = match[2] || url
+        parts.push(
+          <a
+            key={`link-${lineIdx}-${partKey++}`}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline"
+          >
+            {label}
+          </a>
+        )
+      } else if (match[3]) {
+        // This is bold text: *text*
+        parts.push(<strong key={`bold-${lineIdx}-${partKey++}`}>{match[3]}</strong>)
+      }
+
+      lastIndex = match.index + match[0].length
+    }
+
+    // Add remaining text
+    if (lastIndex < formattedLine.length) {
+      parts.push(formattedLine.substring(lastIndex))
+    }
+
+    elements.push(
+      <div key={lineIdx} className={line.trim() === '' ? 'h-2' : ''}>
+        {parts.length > 0 ? parts : line}
+      </div>
+    )
+  })
+
+  return elements
+}
+
+function buildSlackUrl(messageId: string, channelId: string, workspace: string): string {
+  // Convert message timestamp to Slack permalink format: p{timestamp_without_dot}
+  const permalink = 'p' + messageId.replace('.', '')
+  return `https://${workspace}.slack.com/archives/${channelId}/${permalink}`
 }
 
 export default function Home() {
@@ -85,6 +215,7 @@ export default function Home() {
   // Messages state
   const [messages, setMessages] = useState<SlackMessage[]>([])
   const [messagesTotal, setMessagesTotal] = useState(0)
+  const [slackWorkspace, setSlackWorkspace] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState<{
     messageId: string
     releases: Release[]
@@ -107,6 +238,7 @@ export default function Home() {
         const data = await res.json()
         setMessages(data.messages)
         setMessagesTotal(data.total)
+        setSlackWorkspace(data.workspace || '')
       }
     } catch (err) {
       console.error('Failed to fetch messages:', err)
@@ -476,21 +608,32 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {messages.map((msg) => {
-                      const links = extractLinks(msg.text)
-                      return (
-                        <div
-                          key={msg.id}
-                          className={`p-4 rounded-lg border ${
-                            msg.skip_extraction ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200'
-                          }`}
-                        >
+                    {messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`p-4 rounded-lg border ${
+                          msg.skip_extraction ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200'
+                        }`}
+                      >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="text-xs text-gray-500">
                                   {new Date(msg.timestamp).toLocaleString()}
                                 </span>
+                                {slackWorkspace && (
+                                  <a
+                                    href={buildSlackUrl(msg.id, msg.channel_id, slackWorkspace)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-gray-400 hover:text-blue-600 transition-colors"
+                                    title="View in Slack"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                  </a>
+                                )}
                                 {msg.username && (
                                   <span className="text-xs text-gray-500">@{msg.username}</span>
                                 )}
@@ -500,29 +643,7 @@ export default function Home() {
                                   </span>
                                 )}
                               </div>
-                              <p className="text-sm text-gray-900 whitespace-pre-wrap">{msg.text}</p>
-
-                              {links.length > 0 && (
-                                <div className="mt-2 pt-2 border-t border-gray-200">
-                                  <div className="flex flex-wrap gap-2">
-                                    {links.map((link, idx) => (
-                                      <a
-                                        key={idx}
-                                        href={link.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-xs transition-colors"
-                                      >
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                        </svg>
-                                        <span className="font-medium">{link.domain}</span>
-                                        {link.label && <span className="text-blue-600">· {link.label}</span>}
-                                      </a>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
+                              <div className="text-sm text-gray-900">{formatSlackText(msg.text)}</div>
 
                               {msg.thread_replies && msg.thread_replies.length > 0 && (
                                 <div className="mt-2 pl-4 border-l-2 border-gray-200">
@@ -553,8 +674,7 @@ export default function Home() {
                             </div>
                           </div>
                         </div>
-                      )
-                    })}
+                      ))}
                   </div>
                 )}
               </div>

@@ -9,7 +9,13 @@ export async function GET(request: NextRequest) {
 
     const result = await getAllMessages({ limit, offset })
 
-    return NextResponse.json(result)
+    // Include workspace for Slack permalink generation
+    const workspace = process.env.SLACK_WORKSPACE || ''
+
+    return NextResponse.json({
+      ...result,
+      workspace,
+    })
   } catch (err) {
     console.error('Get messages error:', err)
     const message = err instanceof Error ? err.message : 'Unknown error'
