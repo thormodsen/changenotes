@@ -483,6 +483,11 @@ export default function Home() {
   }
 
   const groupedReleases = releases.reduce<Record<string, Release[]>>((acc, release) => {
+    // Skip releases with invalid dates
+    if (!release.date || release.date === 'null' || release.date === 'undefined') {
+      return acc
+    }
+
     if (!acc[release.date]) acc[release.date] = []
     acc[release.date].push(release)
     return acc
