@@ -548,6 +548,15 @@ export default function Home() {
           <h1 className="text-2xl font-semibold text-gray-900">Changelog Manager</h1>
           <p className="text-gray-500 mt-1">Manage Slack messages and publish your changelog</p>
         </div>
+        <button
+          onClick={async () => {
+            await fetch('/api/auth/logout', { method: 'POST' })
+            window.location.href = '/login'
+          }}
+          className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          Sign out
+        </button>
       </div>
 
       {/* Tabs */}
