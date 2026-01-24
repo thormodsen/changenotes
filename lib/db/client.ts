@@ -169,6 +169,23 @@ export async function updateMessageSkipExtraction(
   }
 }
 
+export async function deleteMessage(id: string): Promise<boolean> {
+  try {
+    await sql`DELETE FROM slack_messages WHERE id = ${id}`
+    return true
+  } catch (err) {
+    console.error('Failed to delete message:', err)
+    return false
+  }
+}
+
+export async function getReleasesByMessageId(messageId: string): Promise<Release[]> {
+  const result = await sql<Release>`
+    SELECT * FROM releases WHERE message_id = ${messageId}
+  `
+  return result.rows
+}
+
 export async function getMessagesWithoutReleases(promptVersion?: string): Promise<SlackMessage[]> {
   if (promptVersion) {
     // Get messages that either have no releases OR have releases with a different prompt version

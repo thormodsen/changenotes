@@ -37,6 +37,42 @@ interface Release {
 type PresetKey = '7days' | '30days' | 'month'
 type Tab = 'messages' | 'releases' | 'public'
 
+function extractLinks(text: string): Array<{ url: string; label?: string; domain: string }> {
+  const links: Array<{ url: string; label?: string; domain: string }> = []
+
+  // Match Slack's <url|label> or <url> format
+  const slackLinkRegex = /<(https?:\/\/[^\s|>]+)(?:\|([^>]+))?>/g
+  let match
+
+  while ((match = slackLinkRegex.exec(text)) !== null) {
+    const url = match[1]
+    const label = match[2]
+    try {
+      const domain = new URL(url).hostname
+      links.push({ url, label, domain })
+    } catch {
+      // Invalid URL, skip
+    }
+  }
+
+  // Also match plain URLs not in Slack format
+  const plainUrlRegex = /(?<!<)(https?:\/\/[^\s<>]+)(?!>)/g
+  while ((match = plainUrlRegex.exec(text)) !== null) {
+    const url = match[1]
+    // Skip if already captured by Slack format
+    if (!links.some((l) => l.url === url)) {
+      try {
+        const domain = new URL(url).hostname
+        links.push({ url, domain })
+      } catch {
+        // Invalid URL, skip
+      }
+    }
+  }
+
+  return links
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>('messages')
   const [startDate, setStartDate] = useState('')
@@ -45,11 +81,14 @@ export default function Home() {
   const [loading, setLoading] = useState<'sync' | 'extract' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
-  const [dbInitialized, setDbInitialized] = useState(false)
 
   // Messages state
   const [messages, setMessages] = useState<SlackMessage[]>([])
   const [messagesTotal, setMessagesTotal] = useState(0)
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    messageId: string
+    releases: Release[]
+  } | null>(null)
 
   // Releases state
   const [releases, setReleases] = useState<Release[]>([])
@@ -57,22 +96,9 @@ export default function Home() {
   const [editForm, setEditForm] = useState<Partial<Release>>({})
 
   useEffect(() => {
-    checkDb()
-  }, [])
-
-  useEffect(() => {
     if (activeTab === 'messages') fetchMessages()
     else if (activeTab === 'releases') fetchReleases()
   }, [activeTab])
-
-  const checkDb = async () => {
-    try {
-      const res = await fetch('/api/stats')
-      if (res.ok) setDbInitialized(true)
-    } catch {
-      // DB not initialized yet
-    }
-  }
 
   const fetchMessages = async () => {
     try {
@@ -107,16 +133,6 @@ export default function Home() {
     }
   }, [startDate, endDate])
 
-  const initDb = async () => {
-    try {
-      const res = await fetch('/api/init', { method: 'POST' })
-      if (!res.ok) throw new Error('Failed to initialize database')
-      setDbInitialized(true)
-      setMessage('Database initialized')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to initialize')
-    }
-  }
 
   const applyPreset = (preset: PresetKey) => {
     const today = new Date()
@@ -210,6 +226,37 @@ export default function Home() {
       await fetchMessages()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update')
+    }
+  }
+
+  const confirmDeleteMessage = async (messageId: string) => {
+    try {
+      // Fetch releases for this message
+      const res = await fetch(`/api/messages/${messageId}/releases`)
+      if (res.ok) {
+        const data = await res.json()
+        setDeleteConfirm({ messageId, releases: data.releases })
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch releases')
+    }
+  }
+
+  const deleteMessage = async () => {
+    if (!deleteConfirm) return
+
+    try {
+      const res = await fetch(`/api/messages/${deleteConfirm.messageId}`, {
+        method: 'DELETE',
+      })
+
+      if (!res.ok) throw new Error('Failed to delete message')
+
+      setDeleteConfirm(null)
+      await fetchMessages()
+      setMessage('Message and related releases deleted')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete')
     }
   }
 
@@ -376,15 +423,6 @@ export default function Home() {
             </div>
 
             <div className="space-y-3">
-              {!dbInitialized && (
-                <button
-                  onClick={initDb}
-                  className="w-full py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg font-medium transition-colors"
-                >
-                  Initialize Database
-                </button>
-              )}
-
               <button
                 onClick={syncMessages}
                 disabled={loading !== null || !startDate}
@@ -438,51 +476,85 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {messages.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className={`p-4 rounded-lg border ${
-                          msg.skip_extraction ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs text-gray-500">
-                                {new Date(msg.timestamp).toLocaleString()}
-                              </span>
-                              {msg.username && (
-                                <span className="text-xs text-gray-500">@{msg.username}</span>
-                              )}
-                              {msg.skip_extraction && (
-                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-700">
-                                  Skipped
+                    {messages.map((msg) => {
+                      const links = extractLinks(msg.text)
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`p-4 rounded-lg border ${
+                            msg.skip_extraction ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs text-gray-500">
+                                  {new Date(msg.timestamp).toLocaleString()}
                                 </span>
+                                {msg.username && (
+                                  <span className="text-xs text-gray-500">@{msg.username}</span>
+                                )}
+                                {msg.skip_extraction && (
+                                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-700">
+                                    Skipped
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-900 whitespace-pre-wrap">{msg.text}</p>
+
+                              {links.length > 0 && (
+                                <div className="mt-2 pt-2 border-t border-gray-200">
+                                  <div className="flex flex-wrap gap-2">
+                                    {links.map((link, idx) => (
+                                      <a
+                                        key={idx}
+                                        href={link.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-xs transition-colors"
+                                      >
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                        </svg>
+                                        <span className="font-medium">{link.domain}</span>
+                                        {link.label && <span className="text-blue-600">· {link.label}</span>}
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {msg.thread_replies && msg.thread_replies.length > 0 && (
+                                <div className="mt-2 pl-4 border-l-2 border-gray-200">
+                                  <p className="text-xs text-gray-500 mb-1">
+                                    {msg.thread_replies.length} {msg.thread_replies.length === 1 ? 'reply' : 'replies'}
+                                  </p>
+                                </div>
                               )}
                             </div>
-                            <p className="text-sm text-gray-900 whitespace-pre-wrap">{msg.text}</p>
-                            {msg.thread_replies && msg.thread_replies.length > 0 && (
-                              <div className="mt-2 pl-4 border-l-2 border-gray-200">
-                                <p className="text-xs text-gray-500 mb-1">
-                                  {msg.thread_replies.length} {msg.thread_replies.length === 1 ? 'reply' : 'replies'}
-                                </p>
-                              </div>
-                            )}
-                          </div>
 
-                          <button
-                            onClick={() => toggleSkipExtraction(msg.id, msg.skip_extraction)}
-                            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                              msg.skip_extraction
-                                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                            }`}
-                          >
-                            {msg.skip_extraction ? 'Include' : 'Skip'}
-                          </button>
+                            <div className="flex flex-col gap-2">
+                              <button
+                                onClick={() => toggleSkipExtraction(msg.id, msg.skip_extraction)}
+                                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                  msg.skip_extraction
+                                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                }`}
+                              >
+                                {msg.skip_extraction ? 'Include' : 'Skip'}
+                              </button>
+                              <button
+                                onClick={() => confirmDeleteMessage(msg.id)}
+                                className="px-3 py-1 bg-red-100 text-red-700 rounded text-xs font-medium hover:bg-red-200"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -694,6 +766,58 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Delete Message?</h3>
+
+            {deleteConfirm.releases.length > 0 ? (
+              <>
+                <p className="text-sm text-gray-600 mb-4">
+                  This will also delete {deleteConfirm.releases.length}{' '}
+                  {deleteConfirm.releases.length === 1 ? 'release' : 'releases'} associated with this message:
+                </p>
+                <div className="max-h-48 overflow-y-auto mb-4 space-y-2">
+                  {deleteConfirm.releases.map((release) => (
+                    <div key={release.id} className="p-2 bg-gray-50 rounded text-sm">
+                      <div className="font-medium text-gray-900">{release.title}</div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {release.type} · {release.date}
+                        {release.published && (
+                          <span className="ml-2 px-2 py-0.5 rounded bg-green-100 text-green-700">
+                            Published
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-gray-600 mb-4">
+                This message has no associated releases.
+              </p>
+            )}
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteMessage}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
