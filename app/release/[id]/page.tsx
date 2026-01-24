@@ -14,14 +14,19 @@ export default async function ReleasePage({ params }: PageProps) {
     notFound()
   }
 
+  // Prefer marketing fields when available
+  const displayTitle = release.marketing_title || release.title
+  const displayDescription = release.marketing_description || release.description || ''
+  const displayWhyItMatters = release.marketing_why_this_matters || release.why_this_matters || ''
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 flex items-center justify-center p-4">
       <ReleaseCard
         releaseNote={{
-          title: release.title,
+          title: displayTitle,
           type: release.type,
-          description: release.description || '',
-          whyItMatters: release.why_this_matters || '',
+          description: displayDescription,
+          whyItMatters: displayWhyItMatters,
           date: release.date,
         }}
       />

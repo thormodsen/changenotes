@@ -37,6 +37,10 @@ export interface Release {
   published_at: Date | null
   message_timestamp?: Date
   channel_id?: string
+  // Marketing fields for share cards
+  marketing_title: string | null
+  marketing_description: string | null
+  marketing_why_this_matters: string | null
 }
 
 // Initialize schema
@@ -84,6 +88,21 @@ export async function initializeSchema(): Promise<void> {
       published BOOLEAN DEFAULT FALSE,
       published_at TIMESTAMPTZ
     )
+  `
+
+  // Add marketing columns if they don't exist
+  await sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'releases' AND column_name = 'marketing_title'
+      ) THEN
+        ALTER TABLE releases ADD COLUMN marketing_title TEXT;
+        ALTER TABLE releases ADD COLUMN marketing_description TEXT;
+        ALTER TABLE releases ADD COLUMN marketing_why_this_matters TEXT;
+      END IF;
+    END $$;
   `
 
   // Create indexes (these are idempotent)
@@ -393,6 +412,29 @@ export async function updateRelease(
     return true
   } catch (err) {
     console.error('Failed to update release:', err)
+    return false
+  }
+}
+
+export async function updateReleaseMarketing(
+  id: string,
+  marketing: {
+    title: string
+    description: string
+    whyThisMatters: string
+  }
+): Promise<boolean> {
+  try {
+    await sql`
+      UPDATE releases
+      SET marketing_title = ${marketing.title},
+          marketing_description = ${marketing.description},
+          marketing_why_this_matters = ${marketing.whyThisMatters}
+      WHERE id = ${id}
+    `
+    return true
+  } catch (err) {
+    console.error('Failed to update marketing fields:', err)
     return false
   }
 }

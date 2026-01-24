@@ -34,6 +34,9 @@ interface Release {
   published_at: string | null
   message_timestamp?: string
   channel_id?: string
+  marketing_title: string | null
+  marketing_description: string | null
+  marketing_why_this_matters: string | null
 }
 
 type PresetKey = '7days' | '30days' | 'month'
@@ -229,6 +232,7 @@ export default function Home() {
   const [releasesWorkspace, setReleasesWorkspace] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Release>>({})
+  const [generatingMarketing, setGeneratingMarketing] = useState<string | null>(null)
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -488,6 +492,30 @@ export default function Home() {
       setError(err instanceof Error ? err.message : 'Re-extraction failed')
     } finally {
       setLoading(null)
+    }
+  }
+
+  const generateMarketing = async (releaseId: string) => {
+    setGeneratingMarketing(releaseId)
+    setError(null)
+    setMessage(null)
+
+    try {
+      const res = await fetch(`/api/releases/${releaseId}/marketing`, {
+        method: 'POST',
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to generate marketing')
+      }
+
+      setMessage('Marketing content generated')
+      await fetchReleases()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Marketing generation failed')
+    } finally {
+      setGeneratingMarketing(null)
     }
   }
 
@@ -903,6 +931,21 @@ export default function Home() {
                                             <span className="text-amber-700">{release.impact}</span>
                                           </div>
                                         )}
+
+                                        {release.marketing_title && (
+                                          <div className="mt-3 p-3 bg-teal-50 border border-teal-200 rounded">
+                                            <div className="text-xs font-medium text-teal-700 mb-2">Marketing Copy</div>
+                                            <div className="space-y-1 text-sm">
+                                              <div><span className="font-medium text-teal-800">Title:</span> <span className="text-teal-700">{release.marketing_title}</span></div>
+                                              {release.marketing_description && (
+                                                <div><span className="font-medium text-teal-800">Description:</span> <span className="text-teal-700">{release.marketing_description}</span></div>
+                                              )}
+                                              {release.marketing_why_this_matters && (
+                                                <div><span className="font-medium text-teal-800">Why it matters:</span> <span className="text-teal-700">{release.marketing_why_this_matters}</span></div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )}
                                       </>
                                     )}
                                   </div>
@@ -939,6 +982,21 @@ export default function Home() {
                                         className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium hover:bg-purple-200 disabled:opacity-50"
                                       >
                                         Re-extract
+                                      </button>
+                                      <button
+                                        onClick={() => generateMarketing(release.id)}
+                                        disabled={generatingMarketing !== null}
+                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 ${
+                                          release.marketing_title
+                                            ? 'bg-teal-100 text-teal-700 hover:bg-teal-200'
+                                            : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                        }`}
+                                      >
+                                        {generatingMarketing === release.id
+                                          ? 'Generating...'
+                                          : release.marketing_title
+                                          ? 'Regenerate'
+                                          : 'Marketing'}
                                       </button>
                                     </div>
                                   )}
