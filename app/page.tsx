@@ -206,13 +206,7 @@ function buildSlackUrl(messageId: string, channelId: string, workspace: string):
 }
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<Tab>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('activeTab')
-      return (saved as Tab) || 'messages'
-    }
-    return 'messages'
-  })
+  const [activeTab, setActiveTab] = useState<Tab>('messages')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [activePreset, setActivePreset] = useState<PresetKey | null>(null)
@@ -234,6 +228,14 @@ export default function Home() {
   const [releasesWorkspace, setReleasesWorkspace] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Release>>({})
+
+  // Restore active tab from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('activeTab')
+    if (saved && (saved === 'messages' || saved === 'releases' || saved === 'public')) {
+      setActiveTab(saved as Tab)
+    }
+  }, [])
 
   useEffect(() => {
     if (activeTab === 'messages') fetchMessages()
