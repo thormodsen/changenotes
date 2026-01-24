@@ -32,6 +32,7 @@ interface Release {
   extracted_at: string
   published: boolean
   published_at: string | null
+  message_timestamp?: string
 }
 
 type PresetKey = '7days' | '30days' | 'month'
@@ -765,6 +766,11 @@ export default function Home() {
                                       >
                                         {release.type}
                                       </span>
+                                      {release.message_timestamp && (
+                                        <span className="text-xs text-gray-500">
+                                          {new Date(release.message_timestamp).toLocaleString()}
+                                        </span>
+                                      )}
                                       {release.published && (
                                         <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                                           Published
