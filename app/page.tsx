@@ -488,6 +488,12 @@ export default function Home() {
       return acc
     }
 
+    // Validate the date is actually parseable
+    const testDate = new Date(release.date + 'T00:00:00')
+    if (isNaN(testDate.getTime())) {
+      return acc
+    }
+
     if (!acc[release.date]) acc[release.date] = []
     acc[release.date].push(release)
     return acc
@@ -739,16 +745,22 @@ export default function Home() {
                   </div>
 
                   <div className="space-y-6">
-                    {sortedDates.map((date) => (
-                      <div key={date}>
-                        <h3 className="text-sm font-medium text-gray-500 mb-3">
-                          {new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                        </h3>
+                    {sortedDates.map((date) => {
+                      const dateObj = new Date(date + 'T00:00:00')
+                      const isValidDate = !isNaN(dateObj.getTime())
+
+                      return (
+                        <div key={date}>
+                          <h3 className="text-sm font-medium text-gray-500 mb-3">
+                            {isValidDate
+                              ? dateObj.toLocaleDateString('en-US', {
+                                  weekday: 'long',
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric',
+                                })
+                              : date}
+                          </h3>
                         <div className="space-y-3">
                           {groupedReleases[date].map((release) => {
                             const isEditing = editingId === release.id
@@ -896,7 +908,8 @@ export default function Home() {
                           })}
                         </div>
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
