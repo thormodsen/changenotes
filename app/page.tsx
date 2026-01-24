@@ -74,6 +74,23 @@ export default function Home() {
     fetchStats()
   }, [fetchStats])
 
+  // Load releases on mount
+  useEffect(() => {
+    const loadInitialReleases = async () => {
+      setLoading('releases')
+      try {
+        const res = await fetch('/api/releases')
+        const data = await res.json()
+        if (res.ok) setReleases(data.releases || [])
+      } catch {
+        // Silent fail on initial load
+      } finally {
+        setLoading(null)
+      }
+    }
+    loadInitialReleases()
+  }, [])
+
   const initDb = async () => {
     try {
       const res = await fetch('/api/init', { method: 'POST' })
