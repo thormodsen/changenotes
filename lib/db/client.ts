@@ -268,28 +268,32 @@ export async function getReleases(options?: {
   promptVersion?: string
   limit?: number
 }): Promise<Release[]> {
-  let query = 'SELECT * FROM releases WHERE 1=1'
+  let query = `
+    SELECT r.* FROM releases r
+    INNER JOIN slack_messages m ON r.message_id = m.id
+    WHERE m.skip_extraction = FALSE
+  `
   const params: unknown[] = []
   let paramIndex = 1
 
   if (options?.startDate) {
-    query += ` AND date >= $${paramIndex++}`
+    query += ` AND r.date >= $${paramIndex++}`
     params.push(options.startDate)
   }
   if (options?.endDate) {
-    query += ` AND date <= $${paramIndex++}`
+    query += ` AND r.date <= $${paramIndex++}`
     params.push(options.endDate)
   }
   if (options?.published !== undefined) {
-    query += ` AND published = $${paramIndex++}`
+    query += ` AND r.published = $${paramIndex++}`
     params.push(options.published)
   }
   if (options?.promptVersion) {
-    query += ` AND prompt_version = $${paramIndex++}`
+    query += ` AND r.prompt_version = $${paramIndex++}`
     params.push(options.promptVersion)
   }
 
-  query += ' ORDER BY date DESC, extracted_at DESC'
+  query += ' ORDER BY r.date DESC, r.extracted_at DESC'
 
   if (options?.limit) {
     query += ` LIMIT $${paramIndex++}`
