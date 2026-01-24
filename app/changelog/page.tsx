@@ -51,7 +51,8 @@ export default async function ChangelogPage() {
                   {groupedReleases[date].map((release) => (
                     <article
                       key={release.id}
-                      className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm"
+                      id={`release-${release.id}`}
+                      className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm scroll-mt-6"
                     >
                       <div className="mb-3">
                         <span

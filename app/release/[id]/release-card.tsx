@@ -4,6 +4,7 @@ import { Sparkles, Star, CheckCircle, Zap, Rocket, PartyPopper } from 'lucide-re
 import { motion } from 'framer-motion'
 
 interface ReleaseNote {
+  id: string
   title: string
   type: string
   description: string
@@ -180,9 +181,12 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
           transition={{ duration: 0.6, delay: 0.8 }}
           className="flex items-center justify-center pt-6"
         >
-          <div className="bg-white rounded-full px-8 py-4 shadow-lg">
+          <a
+            href={`/changelog#release-${releaseNote.id}`}
+            className="bg-white rounded-full px-8 py-4 shadow-lg hover:shadow-xl transition-shadow"
+          >
             <p className="text-[#4A7CFF] font-bold">Available Now</p>
-          </div>
+          </a>
         </motion.div>
       </div>
     </div>
