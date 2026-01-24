@@ -63,9 +63,14 @@ export class ReportWriter {
       return platforms;
     };
 
-    // Use type from release data (determined by LLM)
+            // Use type from release data (determined by LLM)
     const getFeatureType = (release: Release): string => {
       return release.type || 'Update';
+    };
+
+    // Determine if this is a "New Feature" type for special styling
+    const isNewFeature = (type: string): boolean => {
+      return type.toLowerCase().includes('new feature') || type.toLowerCase() === 'newfeature';
     };
 
     const sections = Array.from(releasesByDate.entries())
@@ -79,17 +84,24 @@ export class ReportWriter {
             const featureType = getFeatureType(r);
             const platformTag = platforms.length > 0 ? platforms.join(' · ') : null;
 
-            const whyThisMattersSection = r.whyThisMatters
-              ? `        <div class="highlight-section">
-          <span class="highlight-label">WHY THIS MATTERS</span>
-          <p class="highlight-content">${this.escapeHtml(r.whyThisMatters)}</p>
-        </div>`
-              : '';
+            // Build detail boxes for Why This Matters and Impact
+            const detailBoxes: string[] = [];
+            if (r.whyThisMatters) {
+              detailBoxes.push(`          <div class="detail-box">
+            <div class="detail-box-title">Why This Matters</div>
+            <p class="detail-box-content">${this.escapeHtml(r.whyThisMatters)}</p>
+          </div>`);
+            }
+            if (r.impact) {
+              detailBoxes.push(`          <div class="detail-box">
+            <div class="detail-box-title">Impact</div>
+            <p class="detail-box-content">${this.escapeHtml(r.impact)}</p>
+          </div>`);
+            }
 
-            const impactSection = r.impact
-              ? `        <div class="highlight-section">
-          <span class="highlight-label">IMPACT</span>
-          <p class="highlight-content">${this.escapeHtml(r.impact)}</p>
+            const detailBoxesSection = detailBoxes.length > 0
+              ? `        <div class="detail-boxes">
+${detailBoxes.join('\n')}
         </div>`
               : '';
 
@@ -105,22 +117,19 @@ export class ReportWriter {
             </a>
           </h3>
           <div class="card-tags">
-            <span class="tag tag-type">${this.escapeHtml(featureType)}</span>
+            <span class="tag ${isNewFeature(featureType) ? 'tag-type tag-new-feature' : 'tag-type'}">${this.escapeHtml(featureType)}</span>
             ${platformTag ? `<span class="tag tag-platform">${this.escapeHtml(platformTag)}</span>` : ''}
           </div>
         </div>
         <p class="card-description">${this.escapeHtml(r.description)}</p>
-${whyThisMattersSection}
-${impactSection}
+${detailBoxesSection}
+        <a href="${url}" target="_blank" class="read-more-link">Read more</a>
       </div>`;
           })
           .join('\n\n');
 
         return `    <div class="date-section">
-      <div class="date-badge">
-        <span class="date-dot"></span>
-        <span class="date-text">${displayDate}</span>
-      </div>
+      <span class="date-text">${displayDate}</span>
       <div class="releases-container">
 ${items}
       </div>
@@ -143,7 +152,7 @@ ${items}
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-      background-color: #2442F9;
+      background-color: #F5F5F5;
       min-height: 100vh;
       padding: 2rem 1rem;
       line-height: 1.6;
@@ -152,46 +161,22 @@ ${items}
     .main-container {
       max-width: 900px;
       margin: 0 auto;
-      background-color: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
-      padding: 2rem;
-      position: relative;
     }
 
     .date-section {
-      margin-bottom: 2rem;
+      margin-bottom: 2.5rem;
     }
 
     .date-section:last-child {
       margin-bottom: 0;
     }
 
-    .date-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      background-color: #2A2A2A;
-      color: #ffffff;
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 0.9rem;
-      margin-bottom: 1.5rem;
-      position: relative;
-      z-index: 1;
-    }
-
-    .date-dot {
-      width: 8px;
-      height: 8px;
-      background-color: #CCFF00;
-      border-radius: 50%;
-      display: inline-block;
-    }
-
     .date-text {
-      color: #ffffff;
+      color: #333333;
+      font-size: 1rem;
+      font-weight: 500;
+      margin-bottom: 1rem;
+      display: block;
     }
 
     .releases-container {
@@ -227,7 +212,7 @@ ${items}
     }
 
     .title-link {
-      color: #2442F9;
+      color: #2A2A2A;
       text-decoration: none;
       font-size: 1.25rem;
       font-weight: 600;
@@ -238,12 +223,13 @@ ${items}
     }
 
     .title-link:hover {
-      opacity: 0.8;
+      opacity: 0.7;
     }
 
     .external-icon {
-      color: #2442F9;
+      color: #2A2A2A;
       flex-shrink: 0;
+      opacity: 0.5;
     }
 
     .card-tags {
@@ -255,50 +241,76 @@ ${items}
 
     .tag {
       display: inline-block;
-      padding: 0.25rem 0.75rem;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      font-weight: 500;
-      background-color: #E0E0E0;
-      color: #2A2A2A;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
       white-space: nowrap;
     }
 
     .tag-type {
       background-color: #E0E0E0;
+      color: #2A2A2A;
+    }
+
+    .tag-type.tag-new-feature {
+      background-color: #C8FF2C;
+      color: #2A2A2A;
     }
 
     .tag-platform {
       background-color: #E0E0E0;
+      color: #2A2A2A;
     }
 
     .card-description {
-      color: #2A2A2A;
+      color: #333333;
       font-size: 0.95rem;
       line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+
+    .read-more-link {
+      color: #007bff;
+      text-decoration: none;
+      font-size: 0.95rem;
+      display: inline-block;
       margin-top: 0.5rem;
     }
 
-    .highlight-section {
+    .read-more-link:hover {
+      text-decoration: underline;
+    }
+
+    .detail-boxes {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
       margin-top: 1rem;
     }
 
-    .highlight-label {
-      display: inline-block;
-      font-weight: 700;
-      font-size: 0.75rem;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
+    .detail-boxes:has(.detail-box:nth-child(2)) {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .detail-box {
+      background-color: #F0F4F8;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .detail-box-title {
+      font-weight: 600;
+      font-size: 0.9rem;
       color: #2A2A2A;
-      background-color: #CCFF00;
-      padding: 0.25rem 0.5rem;
-      border-radius: 4px;
       margin-bottom: 0.5rem;
     }
 
-    .highlight-content {
-      color: #2A2A2A;
-      font-size: 0.95rem;
+    .detail-box-content {
+      color: #333333;
+      font-size: 0.9rem;
       line-height: 1.6;
       margin: 0;
     }
@@ -306,11 +318,6 @@ ${items}
     @media (max-width: 768px) {
       body {
         padding: 1rem 0.5rem;
-      }
-
-      .main-container {
-        padding: 1.5rem;
-        border-radius: 8px;
       }
 
       .card-header {
@@ -324,6 +331,10 @@ ${items}
 
       .title-link {
         font-size: 1.1rem;
+      }
+
+      .detail-boxes {
+        grid-template-columns: 1fr;
       }
     }
   </style>

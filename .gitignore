@@ -3,15 +3,18 @@ node_modules/
 
 # Build output
 dist/
+.next/
+out/
 
 # Environment
 .env
 .env.local
+.env.*.local
 
-# State file
+# State file (CLI)
 .release-monitor-state.json
 
-# Output files
+# Output files (CLI)
 releases.html
 releases.md
 releases.json
@@ -30,3 +33,9 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Vercel
+.vercel
+
+# LLM debug dumps
+llm-input-*.txt
