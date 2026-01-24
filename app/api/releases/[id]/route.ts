@@ -8,7 +8,7 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
-    const { title, description, type, whyThisMatters, impact } = body
+    const { title, description, type, whyThisMatters, impact, marketingTitle, marketingDescription, marketingWhyThisMatters } = body
 
     const success = await updateRelease(id, {
       title,
@@ -16,6 +16,9 @@ export async function PATCH(
       type,
       whyThisMatters,
       impact,
+      marketingTitle,
+      marketingDescription,
+      marketingWhyThisMatters,
     })
 
     if (!success) {

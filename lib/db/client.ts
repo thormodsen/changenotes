@@ -375,6 +375,9 @@ export async function updateRelease(
     type?: string
     whyThisMatters?: string
     impact?: string
+    marketingTitle?: string
+    marketingDescription?: string
+    marketingWhyThisMatters?: string
   }
 ): Promise<boolean> {
   try {
@@ -401,6 +404,18 @@ export async function updateRelease(
     if (updates.impact !== undefined) {
       fields.push(`impact = $${paramIndex++}`)
       params.push(updates.impact)
+    }
+    if (updates.marketingTitle !== undefined) {
+      fields.push(`marketing_title = $${paramIndex++}`)
+      params.push(updates.marketingTitle || null)
+    }
+    if (updates.marketingDescription !== undefined) {
+      fields.push(`marketing_description = $${paramIndex++}`)
+      params.push(updates.marketingDescription || null)
+    }
+    if (updates.marketingWhyThisMatters !== undefined) {
+      fields.push(`marketing_why_this_matters = $${paramIndex++}`)
+      params.push(updates.marketingWhyThisMatters || null)
     }
 
     if (fields.length === 0) return false

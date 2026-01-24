@@ -443,6 +443,9 @@ export default function Home() {
       description: release.description || '',
       why_this_matters: release.why_this_matters || '',
       impact: release.impact || '',
+      marketing_title: release.marketing_title || '',
+      marketing_description: release.marketing_description || '',
+      marketing_why_this_matters: release.marketing_why_this_matters || '',
     })
   }
 
@@ -461,6 +464,9 @@ export default function Home() {
           description: editForm.description,
           whyThisMatters: editForm.why_this_matters,
           impact: editForm.impact,
+          marketingTitle: editForm.marketing_title,
+          marketingDescription: editForm.marketing_description,
+          marketingWhyThisMatters: editForm.marketing_why_this_matters,
         }),
       })
 
@@ -475,6 +481,9 @@ export default function Home() {
               description: editForm.description || null,
               why_this_matters: editForm.why_this_matters || null,
               impact: editForm.impact || null,
+              marketing_title: editForm.marketing_title || null,
+              marketing_description: editForm.marketing_description || null,
+              marketing_why_this_matters: editForm.marketing_why_this_matters || null,
             }
           : r
       ))
@@ -933,6 +942,41 @@ export default function Home() {
                                             className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
                                           />
                                         </div>
+
+                                        {/* Marketing fields */}
+                                        <div className="border-t border-gray-200 pt-3 mt-3">
+                                          <p className="text-xs font-medium text-teal-700 mb-2">Marketing Copy</p>
+                                          <div className="space-y-3">
+                                            <div>
+                                              <label className="block text-xs text-gray-600 mb-1">Marketing Title</label>
+                                              <input
+                                                type="text"
+                                                value={editForm.marketing_title || ''}
+                                                onChange={(e) => setEditForm({ ...editForm, marketing_title: e.target.value })}
+                                                className="w-full px-2 py-1 border border-teal-300 rounded text-sm"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-xs text-gray-600 mb-1">Marketing Description</label>
+                                              <textarea
+                                                value={editForm.marketing_description || ''}
+                                                onChange={(e) => setEditForm({ ...editForm, marketing_description: e.target.value })}
+                                                rows={2}
+                                                className="w-full px-2 py-1 border border-teal-300 rounded text-sm"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-xs text-gray-600 mb-1">Marketing Why This Matters</label>
+                                              <textarea
+                                                value={editForm.marketing_why_this_matters || ''}
+                                                onChange={(e) => setEditForm({ ...editForm, marketing_why_this_matters: e.target.value })}
+                                                rows={2}
+                                                className="w-full px-2 py-1 border border-teal-300 rounded text-sm"
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+
                                         <div className="flex gap-2">
                                           <button
                                             onClick={() => saveEdit(release.id)}
