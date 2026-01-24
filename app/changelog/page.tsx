@@ -1,6 +1,19 @@
-import { getReleases } from '@/lib/db/client'
+'use client'
 
-export const dynamic = 'force-dynamic'
+import { useState, useEffect, useCallback } from 'react'
+
+interface Release {
+  id: string
+  message_id: string
+  date: string
+  title: string
+  description: string | null
+  type: string
+  why_this_matters: string | null
+  impact: string | null
+  marketing_title: string | null
+  message_timestamp?: string
+}
 
 function formatDate(date: string | Date, options?: Intl.DateTimeFormatOptions): string {
   const dateObj = date instanceof Date
@@ -22,10 +35,45 @@ function getDateKey(date: string | Date): string {
   return dateObj.toISOString().split('T')[0]
 }
 
-export default async function ChangelogPage() {
-  const releases = await getReleases({ published: true })
+const typeColors: Record<string, string> = {
+  'New Feature': 'bg-lime-100 text-lime-800',
+  Improvement: 'bg-blue-100 text-blue-800',
+  'Bug Fix': 'bg-red-100 text-red-800',
+  Deprecation: 'bg-orange-100 text-orange-800',
+  Rollback: 'bg-yellow-100 text-yellow-800',
+  Update: 'bg-gray-100 text-gray-800',
+}
 
-  const groupedReleases = releases.reduce<Record<string, typeof releases>>((acc, release) => {
+export default function ChangelogPage() {
+  const [releases, setReleases] = useState<Release[]>([])
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
+
+  const fetchReleases = useCallback(async (offset = 0) => {
+    const params = new URLSearchParams({
+      published: 'true',
+      limit: '50',
+      offset: offset.toString(),
+    })
+    const res = await fetch(`/api/releases?${params}`)
+    const data = await res.json()
+    return data
+  }, [])
+
+  useEffect(() => {
+    fetchReleases(0).then((data) => {
+      setReleases(data.releases || [])
+      setTotal(data.total || 0)
+      setLoading(false)
+    })
+  }, [fetchReleases])
+
+  const loadMore = async () => {
+    const data = await fetchReleases(releases.length)
+    setReleases((prev) => [...prev, ...(data.releases || [])])
+  }
+
+  const groupedReleases = releases.reduce<Record<string, Release[]>>((acc, release) => {
     const key = getDateKey(release.date)
     if (!acc[key]) acc[key] = []
     acc[key].push(release)
@@ -34,13 +82,14 @@ export default async function ChangelogPage() {
 
   const sortedDates = Object.keys(groupedReleases).sort((a, b) => b.localeCompare(a))
 
-  const typeColors: Record<string, string> = {
-    'New Feature': 'bg-lime-100 text-lime-800',
-    Improvement: 'bg-blue-100 text-blue-800',
-    'Bug Fix': 'bg-red-100 text-red-800',
-    Deprecation: 'bg-orange-100 text-orange-800',
-    Rollback: 'bg-yellow-100 text-yellow-800',
-    Update: 'bg-gray-100 text-gray-800',
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-gray-50">
+        <div className="max-w-4xl mx-auto px-6 py-12">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -135,6 +184,17 @@ export default async function ChangelogPage() {
                 </div>
               </div>
             ))}
+
+            {releases.length < total && (
+              <div className="text-center pt-4">
+                <button
+                  onClick={loadMore}
+                  className="px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+                >
+                  Load more ({total - releases.length} remaining)
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -298,41 +298,57 @@ export async function getReleases(options?: {
   published?: boolean
   promptVersion?: string
   limit?: number
-}): Promise<Release[]> {
-  let query = `
-    SELECT r.*, m.timestamp as message_timestamp, m.channel_id FROM releases r
-    INNER JOIN slack_messages m ON r.message_id = m.id
-    WHERE m.skip_extraction = FALSE
-  `
+  offset?: number
+}): Promise<{ releases: Release[]; total: number }> {
+  let whereClause = 'WHERE m.skip_extraction = FALSE'
   const params: unknown[] = []
   let paramIndex = 1
 
   if (options?.startDate) {
-    query += ` AND r.date >= $${paramIndex++}`
+    whereClause += ` AND r.date >= $${paramIndex++}`
     params.push(options.startDate)
   }
   if (options?.endDate) {
-    query += ` AND r.date <= $${paramIndex++}`
+    whereClause += ` AND r.date <= $${paramIndex++}`
     params.push(options.endDate)
   }
   if (options?.published !== undefined) {
-    query += ` AND r.published = $${paramIndex++}`
+    whereClause += ` AND r.published = $${paramIndex++}`
     params.push(options.published)
   }
   if (options?.promptVersion) {
-    query += ` AND r.prompt_version = $${paramIndex++}`
+    whereClause += ` AND r.prompt_version = $${paramIndex++}`
     params.push(options.promptVersion)
   }
 
-  query += ' ORDER BY r.date DESC, m.timestamp DESC'
+  // Count query
+  const countQuery = `
+    SELECT COUNT(*) as count FROM releases r
+    INNER JOIN slack_messages m ON r.message_id = m.id
+    ${whereClause}
+  `
+  const countResult = await sql.query<{ count: string }>(countQuery, params)
+  const total = parseInt(countResult.rows[0]?.count || '0')
+
+  // Data query
+  let dataQuery = `
+    SELECT r.*, m.timestamp as message_timestamp, m.channel_id FROM releases r
+    INNER JOIN slack_messages m ON r.message_id = m.id
+    ${whereClause}
+    ORDER BY r.date DESC, m.timestamp DESC
+  `
 
   if (options?.limit) {
-    query += ` LIMIT $${paramIndex++}`
+    dataQuery += ` LIMIT $${paramIndex++}`
     params.push(options.limit)
   }
+  if (options?.offset) {
+    dataQuery += ` OFFSET $${paramIndex++}`
+    params.push(options.offset)
+  }
 
-  const result = await sql.query<Release>(query, params)
-  return result.rows
+  const result = await sql.query<Release>(dataQuery, params)
+  return { releases: result.rows, total }
 }
 
 export async function deleteReleasesForReextraction(promptVersion?: string): Promise<number> {

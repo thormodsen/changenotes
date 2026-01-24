@@ -229,6 +229,7 @@ export default function Home() {
 
   // Releases state
   const [releases, setReleases] = useState<Release[]>([])
+  const [releasesTotal, setReleasesTotal] = useState(0)
   const [releasesWorkspace, setReleasesWorkspace] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Release>>({})
@@ -266,6 +267,7 @@ export default function Home() {
       const params = new URLSearchParams()
       if (startDate) params.append('start', startDate)
       if (endDate) params.append('end', endDate)
+      params.append('limit', '100')
 
       const res = await fetch(`/api/releases?${params}`)
       const data = await res.json()
@@ -273,6 +275,7 @@ export default function Home() {
       if (!res.ok) throw new Error(data.error)
 
       setReleases(data.releases || [])
+      setReleasesTotal(data.total || 0)
       setReleasesWorkspace(data.workspace || '')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch releases')
@@ -280,6 +283,25 @@ export default function Home() {
       setLoading(null)
     }
   }, [startDate, endDate])
+
+  const loadMoreReleases = useCallback(async () => {
+    try {
+      const params = new URLSearchParams()
+      if (startDate) params.append('start', startDate)
+      if (endDate) params.append('end', endDate)
+      params.append('limit', '100')
+      params.append('offset', releases.length.toString())
+
+      const res = await fetch(`/api/releases?${params}`)
+      const data = await res.json()
+
+      if (!res.ok) throw new Error(data.error)
+
+      setReleases(prev => [...prev, ...(data.releases || [])])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load more releases')
+    }
+  }, [startDate, endDate, releases.length])
 
   // Restore active tab from localStorage on mount
   useEffect(() => {
@@ -1110,6 +1132,15 @@ export default function Home() {
                       </div>
                       )
                     })}
+
+                    {releases.length < releasesTotal && (
+                      <button
+                        onClick={loadMoreReleases}
+                        className="w-full mt-6 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        Load more ({releasesTotal - releases.length} remaining)
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
