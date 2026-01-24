@@ -2,12 +2,33 @@ import { getReleases } from '@/lib/db/client'
 
 export const dynamic = 'force-dynamic'
 
+function formatDate(date: string | Date, options?: Intl.DateTimeFormatOptions): string {
+  const dateObj = date instanceof Date
+    ? date
+    : new Date(typeof date === 'string' && !date.includes('T') ? date + 'T00:00:00' : date)
+
+  if (isNaN(dateObj.getTime())) return ''
+
+  return dateObj.toLocaleDateString('en-US', options || {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
+function getDateKey(date: string | Date): string {
+  const dateObj = date instanceof Date ? date : new Date(date)
+  if (isNaN(dateObj.getTime())) return 'unknown'
+  return dateObj.toISOString().split('T')[0]
+}
+
 export default async function ChangelogPage() {
   const releases = await getReleases({ published: true })
 
   const groupedReleases = releases.reduce<Record<string, typeof releases>>((acc, release) => {
-    if (!acc[release.date]) acc[release.date] = []
-    acc[release.date].push(release)
+    const key = getDateKey(release.date)
+    if (!acc[key]) acc[key] = []
+    acc[key].push(release)
     return acc
   }, {})
 
@@ -39,12 +60,12 @@ export default async function ChangelogPage() {
             {sortedDates.map((date) => (
               <div key={date}>
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-                  {new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
+                  {formatDate(date, {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',
-                  })}
+                  }) || date}
                 </h2>
 
                 <div className="space-y-6">
@@ -54,7 +75,7 @@ export default async function ChangelogPage() {
                       id={`release-${release.id}`}
                       className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm scroll-mt-6"
                     >
-                      <div className="mb-3">
+                      <div className="flex items-center gap-3 mb-3">
                         <span
                           className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
                             typeColors[release.type] || 'bg-gray-100 text-gray-800'
@@ -62,6 +83,16 @@ export default async function ChangelogPage() {
                         >
                           {release.type}
                         </span>
+                        {release.message_timestamp && (
+                          <span className="text-sm text-gray-500">
+                            {formatDate(release.message_timestamp, {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        )}
                       </div>
 
                       <h3 className="text-xl font-semibold text-gray-900 mb-2">{release.title}</h3>
