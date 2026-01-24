@@ -229,22 +229,6 @@ export default function Home() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Release>>({})
 
-  // Restore active tab from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('activeTab')
-    if (saved && (saved === 'messages' || saved === 'releases' || saved === 'public')) {
-      setActiveTab(saved as Tab)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (activeTab === 'messages') fetchMessages()
-    else if (activeTab === 'releases') fetchReleases()
-
-    // Save active tab to localStorage
-    localStorage.setItem('activeTab', activeTab)
-  }, [activeTab, fetchMessages, fetchReleases])
-
   const fetchMessages = useCallback(async () => {
     try {
       const res = await fetch('/api/messages?limit=100')
@@ -279,6 +263,22 @@ export default function Home() {
       setLoading(null)
     }
   }, [startDate, endDate])
+
+  // Restore active tab from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('activeTab')
+    if (saved && (saved === 'messages' || saved === 'releases' || saved === 'public')) {
+      setActiveTab(saved as Tab)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'messages') fetchMessages()
+    else if (activeTab === 'releases') fetchReleases()
+
+    // Save active tab to localStorage
+    localStorage.setItem('activeTab', activeTab)
+  }, [activeTab, fetchMessages, fetchReleases])
 
 
   const applyPreset = (preset: PresetKey) => {
