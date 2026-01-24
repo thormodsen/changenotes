@@ -446,6 +446,32 @@ export default function Home() {
     }
   }
 
+  const reextractMessage = async (messageId: string) => {
+    if (!confirm('Re-extract this message? This will delete all existing releases for this message and create new ones.')) {
+      return
+    }
+
+    setLoading('extract')
+    setError(null)
+    setMessage(null)
+
+    try {
+      const res = await fetch(`/api/messages/${messageId}/reextract`, {
+        method: 'POST',
+      })
+
+      if (!res.ok) throw new Error('Failed to re-extract')
+
+      const data = await res.json()
+      setMessage(`Re-extracted ${data.extracted} releases (prompt v${data.promptVersion})`)
+      await fetchReleases()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Re-extraction failed')
+    } finally {
+      setLoading(null)
+    }
+  }
+
   const typeColors: Record<string, string> = {
     'New Feature': 'bg-lime-100 text-lime-800',
     Improvement: 'bg-blue-100 text-blue-800',
@@ -843,6 +869,13 @@ export default function Home() {
                                         className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
                                       >
                                         Edit
+                                      </button>
+                                      <button
+                                        onClick={() => reextractMessage(release.message_id)}
+                                        disabled={loading !== null}
+                                        className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium hover:bg-purple-200 disabled:opacity-50"
+                                      >
+                                        Re-extract
                                       </button>
                                     </div>
                                   )}
