@@ -163,10 +163,13 @@ export async function extractReleasesFromMessages(
 
       const releases = parseReleasesFromResponse(textContent)
 
+      // Use the Slack message timestamp as the release date
+      const messageDate = msg.timestamp.toISOString().split('T')[0]
+
       for (const release of releases) {
         await insertRelease({
           messageId: msg.id,
-          date: release.date,
+          date: messageDate,
           title: release.title,
           description: release.description,
           type: release.type,

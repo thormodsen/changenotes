@@ -293,7 +293,7 @@ export async function getReleases(options?: {
     params.push(options.promptVersion)
   }
 
-  query += ' ORDER BY r.date DESC, r.extracted_at DESC'
+  query += ' ORDER BY r.date DESC, m.timestamp DESC'
 
   if (options?.limit) {
     query += ` LIMIT $${paramIndex++}`
