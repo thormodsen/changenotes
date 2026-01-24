@@ -248,6 +248,65 @@ export async function publishReleases(ids: string[]): Promise<number> {
   return result.rowCount ?? 0
 }
 
+export async function unpublishReleases(ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0
+
+  const result = await sql.query(
+    `UPDATE releases SET published = false, published_at = NULL WHERE id = ANY($1::uuid[])`,
+    [ids]
+  )
+  return result.rowCount ?? 0
+}
+
+export async function updateRelease(
+  id: string,
+  updates: {
+    title?: string
+    description?: string
+    type?: string
+    whyThisMatters?: string
+    impact?: string
+  }
+): Promise<boolean> {
+  try {
+    const fields: string[] = []
+    const params: unknown[] = []
+    let paramIndex = 1
+
+    if (updates.title !== undefined) {
+      fields.push(`title = $${paramIndex++}`)
+      params.push(updates.title)
+    }
+    if (updates.description !== undefined) {
+      fields.push(`description = $${paramIndex++}`)
+      params.push(updates.description)
+    }
+    if (updates.type !== undefined) {
+      fields.push(`type = $${paramIndex++}`)
+      params.push(updates.type)
+    }
+    if (updates.whyThisMatters !== undefined) {
+      fields.push(`why_this_matters = $${paramIndex++}`)
+      params.push(updates.whyThisMatters)
+    }
+    if (updates.impact !== undefined) {
+      fields.push(`impact = $${paramIndex++}`)
+      params.push(updates.impact)
+    }
+
+    if (fields.length === 0) return false
+
+    params.push(id)
+    const query = `UPDATE releases SET ${fields.join(', ')} WHERE id = $${paramIndex}`
+
+    await sql.query(query, params)
+    return true
+  } catch (err) {
+    console.error('Failed to update release:', err)
+    return false
+  }
+}
+
 export async function getStats(): Promise<{
   totalMessages: number
   totalReleases: number

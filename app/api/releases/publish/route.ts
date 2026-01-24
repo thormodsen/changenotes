@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { publishReleases } from '@/lib/db/client'
+import { publishReleases, unpublishReleases } from '@/lib/db/client'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { ids } = body as { ids?: string[] }
+    const { ids, unpublish } = body as { ids?: string[]; unpublish?: boolean }
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json({ error: 'ids array is required' }, { status: 400 })
     }
 
-    const published = await publishReleases(ids)
+    const count = unpublish ? await unpublishReleases(ids) : await publishReleases(ids)
 
     return NextResponse.json({
       success: true,
-      published,
+      count,
     })
   } catch (err) {
     console.error('Publish error:', err)

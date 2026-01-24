@@ -36,6 +36,8 @@ export default function Home() {
   const [message, setMessage] = useState<string | null>(null)
   const [activePreset, setActivePreset] = useState<PresetKey | null>(null)
   const [dbInitialized, setDbInitialized] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<Partial<Release>>({})
 
   const fetchStats = useCallback(async () => {
     try {
@@ -148,8 +150,11 @@ export default function Home() {
 
       if (!res.ok) throw new Error(data.error)
 
-      setMessage(`Synced ${data.inserted} new messages (${data.skipped} already existed)`)
+      const msg = `Synced ${data.inserted} new messages (${data.skipped} already existed).`
+      const extractMsg = data.extracted > 0 ? ` Extracted ${data.extracted} releases.` : ''
+      setMessage(msg + extractMsg)
       await fetchStats()
+      await fetchReleases()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sync failed')
     } finally {
@@ -181,6 +186,61 @@ export default function Home() {
     }
   }
 
+  const togglePublish = async (id: string, currentlyPublished: boolean) => {
+    try {
+      const res = await fetch('/api/releases/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [id], unpublish: currentlyPublished }),
+      })
+
+      if (!res.ok) throw new Error('Failed to update publish status')
+
+      await fetchReleases()
+      await fetchStats()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update')
+    }
+  }
+
+  const startEdit = (release: Release) => {
+    setEditingId(release.id)
+    setEditForm({
+      title: release.title,
+      description: release.description || '',
+      why_this_matters: release.why_this_matters || '',
+      impact: release.impact || '',
+    })
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditForm({})
+  }
+
+  const saveEdit = async (id: string) => {
+    try {
+      const res = await fetch(`/api/releases/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editForm.title,
+          description: editForm.description,
+          whyThisMatters: editForm.why_this_matters,
+          impact: editForm.impact,
+        }),
+      })
+
+      if (!res.ok) throw new Error('Failed to update release')
+
+      setEditingId(null)
+      setEditForm({})
+      await fetchReleases()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save')
+    }
+  }
+
   const typeColors: Record<string, string> = {
     'New Feature': 'bg-lime-100 text-lime-800',
     Improvement: 'bg-blue-100 text-blue-800',
@@ -200,10 +260,25 @@ export default function Home() {
 
   return (
     <main className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-2xl font-semibold text-gray-900">Changelog Viewer</h1>
-      <p className="text-gray-500 mt-1 mb-6">
-        Sync Slack messages, extract releases, and publish changelogs
-      </p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Changelog Viewer</h1>
+          <p className="text-gray-500 mt-1">
+            Sync messages from Slack and publish your changelog
+          </p>
+        </div>
+        <a
+          href="/changelog"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+        >
+          View Public Changelog
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </a>
+      </div>
 
       {/* Stats Bar */}
       {stats && (
@@ -305,7 +380,7 @@ export default function Home() {
                 disabled={loading !== null || !startDate}
                 className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg font-medium transition-colors"
               >
-                {loading === 'sync' ? 'Syncing...' : '1. Sync from Slack'}
+                {loading === 'sync' ? 'Syncing & Extracting...' : 'Sync & Extract'}
               </button>
 
               <button
@@ -313,15 +388,7 @@ export default function Home() {
                 disabled={loading !== null}
                 className="w-full py-2.5 bg-purple-500 hover:bg-purple-600 disabled:bg-purple-300 text-white rounded-lg font-medium transition-colors"
               >
-                {loading === 'extract' ? 'Extracting...' : '2. Extract Releases'}
-              </button>
-
-              <button
-                onClick={fetchReleases}
-                disabled={loading !== null}
-                className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 text-gray-700 rounded-lg font-medium transition-colors"
-              >
-                {loading === 'releases' ? 'Loading...' : '3. View Releases'}
+                {loading === 'extract' ? 'Extracting...' : 'Extract Pending'}
               </button>
 
               <hr className="my-2" />
@@ -331,7 +398,7 @@ export default function Home() {
                 disabled={loading !== null}
                 className="w-full py-2 text-sm bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg transition-colors"
               >
-                Re-extract All (new prompt)
+                Re-extract All (update prompt)
               </button>
             </div>
           </div>
@@ -360,9 +427,7 @@ export default function Home() {
                 </svg>
                 <p className="font-medium text-gray-900">No Releases Yet</p>
                 <p className="text-sm mt-1 text-center max-w-xs">
-                  1. Select a date range and sync messages from Slack<br />
-                  2. Extract releases using Claude<br />
-                  3. View and publish your changelog
+                  Select a date range and click "Sync & Extract" to fetch messages from Slack and extract releases using Claude
                 </p>
               </div>
             ) : (
@@ -385,56 +450,138 @@ export default function Home() {
                         })}
                       </h3>
                       <div className="space-y-3">
-                        {groupedReleases[date].map((release) => (
-                          <div
-                            key={release.id}
-                            className={`p-4 rounded-lg border ${
-                              release.published
-                                ? 'bg-green-50 border-green-200'
-                                : 'bg-gray-50 border-gray-100'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span
-                                    className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                      typeColors[release.type] || 'bg-gray-100 text-gray-800'
-                                    }`}
-                                  >
-                                    {release.type}
-                                  </span>
-                                  {release.published && (
-                                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                      Published
+                        {groupedReleases[date].map((release) => {
+                          const isEditing = editingId === release.id
+                          return (
+                            <div
+                              key={release.id}
+                              className={`p-4 rounded-lg border ${
+                                release.published
+                                  ? 'bg-green-50 border-green-200'
+                                  : 'bg-gray-50 border-gray-100'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span
+                                      className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                        typeColors[release.type] || 'bg-gray-100 text-gray-800'
+                                      }`}
+                                    >
+                                      {release.type}
                                     </span>
-                                  )}
-                                  {release.prompt_version && (
-                                    <span className="text-xs text-gray-400">v{release.prompt_version}</span>
+                                    {release.published && (
+                                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                        Published
+                                      </span>
+                                    )}
+                                    {release.prompt_version && (
+                                      <span className="text-xs text-gray-400">v{release.prompt_version}</span>
+                                    )}
+                                  </div>
+
+                                  {isEditing ? (
+                                    <div className="space-y-3">
+                                      <div>
+                                        <label className="block text-xs text-gray-600 mb-1">Title</label>
+                                        <input
+                                          type="text"
+                                          value={editForm.title || ''}
+                                          onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-xs text-gray-600 mb-1">Description</label>
+                                        <textarea
+                                          value={editForm.description || ''}
+                                          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                          rows={2}
+                                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-xs text-gray-600 mb-1">Why this matters</label>
+                                        <textarea
+                                          value={editForm.why_this_matters || ''}
+                                          onChange={(e) => setEditForm({ ...editForm, why_this_matters: e.target.value })}
+                                          rows={2}
+                                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-xs text-gray-600 mb-1">Impact</label>
+                                        <textarea
+                                          value={editForm.impact || ''}
+                                          onChange={(e) => setEditForm({ ...editForm, impact: e.target.value })}
+                                          rows={2}
+                                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                        />
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => saveEdit(release.id)}
+                                          className="px-3 py-1 bg-gray-900 text-white rounded text-sm hover:bg-gray-800"
+                                        >
+                                          Save
+                                        </button>
+                                        <button
+                                          onClick={cancelEdit}
+                                          className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <h4 className="font-medium text-gray-900">{release.title}</h4>
+                                      {release.description && (
+                                        <p className="text-sm text-gray-600 mt-1">{release.description}</p>
+                                      )}
+
+                                      {release.why_this_matters && (
+                                        <div className="mt-3 p-2 bg-blue-50 rounded text-sm">
+                                          <span className="font-medium text-blue-800">Why this matters: </span>
+                                          <span className="text-blue-700">{release.why_this_matters}</span>
+                                        </div>
+                                      )}
+
+                                      {release.impact && (
+                                        <div className="mt-2 p-2 bg-amber-50 rounded text-sm">
+                                          <span className="font-medium text-amber-800">Impact: </span>
+                                          <span className="text-amber-700">{release.impact}</span>
+                                        </div>
+                                      )}
+                                    </>
                                   )}
                                 </div>
-                                <h4 className="font-medium text-gray-900">{release.title}</h4>
-                                {release.description && (
-                                  <p className="text-sm text-gray-600 mt-1">{release.description}</p>
-                                )}
 
-                                {release.why_this_matters && (
-                                  <div className="mt-3 p-2 bg-blue-50 rounded text-sm">
-                                    <span className="font-medium text-blue-800">Why this matters: </span>
-                                    <span className="text-blue-700">{release.why_this_matters}</span>
-                                  </div>
-                                )}
-
-                                {release.impact && (
-                                  <div className="mt-2 p-2 bg-amber-50 rounded text-sm">
-                                    <span className="font-medium text-amber-800">Impact: </span>
-                                    <span className="text-amber-700">{release.impact}</span>
+                                {!isEditing && (
+                                  <div className="flex flex-col gap-2">
+                                    <button
+                                      onClick={() => togglePublish(release.id, release.published)}
+                                      className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                        release.published
+                                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                          : 'bg-green-500 text-white hover:bg-green-600'
+                                      }`}
+                                    >
+                                      {release.published ? 'Unpublish' : 'Publish'}
+                                    </button>
+                                    <button
+                                      onClick={() => startEdit(release)}
+                                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
+                                    >
+                                      Edit
+                                    </button>
                                   </div>
                                 )}
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   ))}

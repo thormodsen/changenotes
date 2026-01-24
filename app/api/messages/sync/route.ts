@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { insertMessage, getMessageIds, initializeSchema } from '@/lib/db/client'
+import { insertMessage, getMessageIds, initializeSchema, type SlackMessage } from '@/lib/db/client'
+import { extractReleasesFromMessages } from '@/lib/extraction'
 
 interface SlackApiMessage {
   ts: string
@@ -92,6 +93,7 @@ export async function POST(request: NextRequest) {
     let inserted = 0
     let skipped = 0
     let cursor: string | undefined
+    const newMessages: SlackMessage[] = []
 
     const oldestTs = oldest ? (oldest / 1000).toString() : undefined
     const latestTs = latest ? (latest / 1000).toString() : undefined
@@ -125,11 +127,12 @@ export async function POST(request: NextRequest) {
           threadReplies = await fetchThreadReplies(config.slackToken, config.slackChannelId, msg.thread_ts)
         }
 
+        const timestamp = new Date(parseFloat(msg.ts) * 1000)
         const success = await insertMessage({
           id: msg.ts,
           channelId: config.slackChannelId,
           text: msg.text || '',
-          timestamp: new Date(parseFloat(msg.ts) * 1000),
+          timestamp,
           userId: msg.user,
           username: msg.username,
           threadReplies,
@@ -139,17 +142,40 @@ export async function POST(request: NextRequest) {
         if (success) {
           inserted++
           existingIds.add(msg.ts)
+          // Track new messages for extraction
+          newMessages.push({
+            id: msg.ts,
+            channel_id: config.slackChannelId,
+            text: msg.text || '',
+            timestamp,
+            user_id: msg.user || null,
+            username: msg.username || null,
+            thread_replies: threadReplies || null,
+            raw_json: (msg as unknown as Record<string, unknown>) || null,
+            fetched_at: new Date(),
+          })
         }
       }
 
       cursor = data.response_metadata?.next_cursor
     } while (cursor)
 
+    // Extract releases from newly synced messages
+    let extracted = 0
+    let promptVersion = 'unknown'
+    if (newMessages.length > 0) {
+      const result = await extractReleasesFromMessages(newMessages)
+      extracted = result.extracted
+      promptVersion = result.promptVersion
+    }
+
     return NextResponse.json({
       success: true,
       inserted,
       skipped,
       total: inserted + skipped,
+      extracted,
+      promptVersion,
     })
   } catch (err) {
     console.error('Sync error:', err)
