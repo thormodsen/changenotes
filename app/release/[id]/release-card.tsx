@@ -33,11 +33,15 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
     ? releaseNote.title.split('&').map((f) => f.trim())
     : [releaseNote.title]
 
-  const formattedDate = new Date(releaseNote.date + 'T00:00:00').toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  const dateString = releaseNote.date.includes('T') ? releaseNote.date : releaseNote.date + 'T00:00:00'
+  const dateObj = new Date(dateString)
+  const formattedDate = !isNaN(dateObj.getTime())
+    ? dateObj.toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : ''
 
   return (
     <div
@@ -173,7 +177,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
               <Icon className="w-4 h-4 text-[#4A7CFF]" />
               <span className="text-[#4A7CFF] text-sm font-bold">{config.label}</span>
             </div>
-            <span className="text-white/70 text-sm">{formattedDate}</span>
+            {formattedDate && <span className="text-white/70 text-sm">{formattedDate}</span>}
           </motion.div>
 
           <motion.h1
