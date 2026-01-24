@@ -749,7 +749,8 @@ export default function Home() {
 
                   <div className="space-y-6">
                     {sortedDates.map((date) => {
-                      const dateObj = new Date(date + 'T00:00:00')
+                      // Handle both YYYY-MM-DD and full ISO timestamp formats
+                      const dateObj = new Date(date.includes('T') ? date : date + 'T00:00:00')
                       const isValidDate = !isNaN(dateObj.getTime())
 
                       return (
