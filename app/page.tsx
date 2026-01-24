@@ -789,7 +789,13 @@ export default function Home() {
                                       </span>
                                       {release.message_timestamp && (
                                         <span className="text-xs text-gray-500">
-                                          {new Date(release.message_timestamp).toLocaleString()}
+                                          {new Date(release.message_timestamp).toLocaleString('en-US', {
+                                            year: 'numeric',
+                                            month: '2-digit',
+                                            day: '2-digit',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                          })}
                                         </span>
                                       )}
                                       {release.published && (
