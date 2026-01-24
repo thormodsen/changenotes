@@ -740,25 +740,18 @@ export default function Home() {
 
                   <div className="space-y-6">
                     {sortedDates.map((date) => {
-                      // Get the first release in this group to use its timestamp
-                      const firstRelease = groupedReleases[date][0]
-                      const displayDate = firstRelease?.message_timestamp
-                        ? new Date(firstRelease.message_timestamp)
-                        : new Date(date + 'T00:00:00')
-
-                      const isValidDate = !isNaN(displayDate.getTime())
+                      const dateObj = new Date(date + 'T00:00:00')
+                      const isValidDate = !isNaN(dateObj.getTime())
 
                       return (
                         <div key={date}>
                           <h3 className="text-sm font-medium text-gray-500 mb-3">
                             {isValidDate
-                              ? displayDate.toLocaleString('en-US', {
+                              ? dateObj.toLocaleDateString('en-US', {
                                   weekday: 'long',
                                   year: 'numeric',
                                   month: 'long',
                                   day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
                                 })
                               : date}
                           </h3>
