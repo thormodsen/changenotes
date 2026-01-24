@@ -241,11 +241,10 @@ export async function deleteReleasesForReextraction(promptVersion?: string): Pro
 export async function publishReleases(ids: string[]): Promise<number> {
   if (ids.length === 0) return 0
 
-  const result = await sql`
-    UPDATE releases
-    SET published = true, published_at = NOW()
-    WHERE id = ANY(${ids}::uuid[])
-  `
+  const result = await sql.query(
+    `UPDATE releases SET published = true, published_at = NOW() WHERE id = ANY($1::uuid[])`,
+    [ids]
+  )
   return result.rowCount ?? 0
 }
 
