@@ -488,12 +488,6 @@ export default function Home() {
       return acc
     }
 
-    // Validate the date is actually parseable
-    const testDate = new Date(release.date + 'T00:00:00')
-    if (isNaN(testDate.getTime())) {
-      return acc
-    }
-
     if (!acc[release.date]) acc[release.date] = []
     acc[release.date].push(release)
     return acc
