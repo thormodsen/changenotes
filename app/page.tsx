@@ -425,7 +425,12 @@ export default function Home() {
 
       if (!res.ok) throw new Error('Failed to update publish status')
 
-      await fetchReleases()
+      // Update local state instead of refetching
+      setReleases(prev => prev.map(r =>
+        r.id === id
+          ? { ...r, published: !currentlyPublished, published_at: !currentlyPublished ? new Date().toISOString() : null }
+          : r
+      ))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update')
     }
@@ -461,9 +466,20 @@ export default function Home() {
 
       if (!res.ok) throw new Error('Failed to update release')
 
+      // Update local state instead of refetching
+      setReleases(prev => prev.map(r =>
+        r.id === id
+          ? {
+              ...r,
+              title: editForm.title || r.title,
+              description: editForm.description || null,
+              why_this_matters: editForm.why_this_matters || null,
+              impact: editForm.impact || null,
+            }
+          : r
+      ))
       setEditingId(null)
       setEditForm({})
-      await fetchReleases()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save')
     }
@@ -510,8 +526,20 @@ export default function Home() {
         throw new Error(data.error || 'Failed to generate marketing')
       }
 
+      const { marketing } = await res.json()
+
+      // Update local state instead of refetching
+      setReleases(prev => prev.map(r =>
+        r.id === releaseId
+          ? {
+              ...r,
+              marketing_title: marketing.title,
+              marketing_description: marketing.description,
+              marketing_why_this_matters: marketing.whyThisMatters,
+            }
+          : r
+      ))
       setMessage('Marketing content generated')
-      await fetchReleases()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Marketing generation failed')
     } finally {
