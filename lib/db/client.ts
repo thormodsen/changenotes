@@ -188,6 +188,16 @@ export async function getReleasesByMessageId(messageId: string): Promise<Release
   return result.rows
 }
 
+export async function getReleaseById(id: string): Promise<Release | null> {
+  const result = await sql<Release>`
+    SELECT r.*, m.timestamp as message_timestamp
+    FROM releases r
+    INNER JOIN slack_messages m ON r.message_id = m.id
+    WHERE r.id = ${id}
+  `
+  return result.rows[0] || null
+}
+
 export async function getMessagesWithoutReleases(promptVersion?: string): Promise<SlackMessage[]> {
   if (promptVersion) {
     // Get messages that either have no releases OR have releases with a different prompt version

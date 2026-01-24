@@ -919,6 +919,14 @@ export default function Home() {
                                       >
                                         {release.published ? 'Unpublish' : 'Publish'}
                                       </button>
+                                      <a
+                                        href={`/release/${release.id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-3 py-1 bg-pink-100 text-pink-700 rounded text-xs font-medium hover:bg-pink-200 text-center"
+                                      >
+                                        Share
+                                      </a>
                                       <button
                                         onClick={() => startEdit(release)}
                                         className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
