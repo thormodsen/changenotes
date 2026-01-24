@@ -207,6 +207,7 @@ function buildSlackUrl(messageId: string, channelId: string, workspace: string):
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>('messages')
+  const [isInitialized, setIsInitialized] = useState(false)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [activePreset, setActivePreset] = useState<PresetKey | null>(null)
@@ -270,15 +271,18 @@ export default function Home() {
     if (saved && (saved === 'messages' || saved === 'releases' || saved === 'public')) {
       setActiveTab(saved as Tab)
     }
+    setIsInitialized(true)
   }, [])
 
+  // Fetch data when tab changes, save to localStorage only after initialization
   useEffect(() => {
+    if (!isInitialized) return
+
     if (activeTab === 'messages') fetchMessages()
     else if (activeTab === 'releases') fetchReleases()
 
-    // Save active tab to localStorage
     localStorage.setItem('activeTab', activeTab)
-  }, [activeTab, fetchMessages, fetchReleases])
+  }, [activeTab, isInitialized, fetchMessages, fetchReleases])
 
 
   const applyPreset = (preset: PresetKey) => {
