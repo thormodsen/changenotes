@@ -17,7 +17,10 @@ export async function GET(request: NextRequest) {
         : undefined,
     })
 
-    return NextResponse.json({ releases })
+    // Include workspace for Slack permalink generation
+    const workspace = process.env.SLACK_WORKSPACE || ''
+
+    return NextResponse.json({ releases, workspace })
   } catch (err) {
     console.error('Failed to get releases:', err)
     const message = err instanceof Error ? err.message : 'Unknown error'

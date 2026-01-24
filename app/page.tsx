@@ -33,6 +33,7 @@ interface Release {
   published: boolean
   published_at: string | null
   message_timestamp?: string
+  channel_id?: string
 }
 
 type PresetKey = '7days' | '30days' | 'month'
@@ -230,6 +231,7 @@ export default function Home() {
 
   // Releases state
   const [releases, setReleases] = useState<Release[]>([])
+  const [releasesWorkspace, setReleasesWorkspace] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Release>>({})
 
@@ -268,6 +270,7 @@ export default function Home() {
       if (!res.ok) throw new Error(data.error)
 
       setReleases(data.releases || [])
+      setReleasesWorkspace(data.workspace || '')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch releases')
     } finally {
@@ -797,6 +800,19 @@ export default function Home() {
                                             minute: '2-digit',
                                           })}
                                         </span>
+                                      )}
+                                      {releasesWorkspace && release.channel_id && (
+                                        <a
+                                          href={buildSlackUrl(release.message_id, release.channel_id, releasesWorkspace)}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-gray-400 hover:text-blue-600 transition-colors"
+                                          title="View in Slack"
+                                        >
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                          </svg>
+                                        </a>
                                       )}
                                       {release.published && (
                                         <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">

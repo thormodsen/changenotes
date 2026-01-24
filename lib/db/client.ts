@@ -36,6 +36,7 @@ export interface Release {
   published: boolean
   published_at: Date | null
   message_timestamp?: Date
+  channel_id?: string
 }
 
 // Initialize schema
@@ -270,7 +271,7 @@ export async function getReleases(options?: {
   limit?: number
 }): Promise<Release[]> {
   let query = `
-    SELECT r.*, m.timestamp as message_timestamp FROM releases r
+    SELECT r.*, m.timestamp as message_timestamp, m.channel_id FROM releases r
     INNER JOIN slack_messages m ON r.message_id = m.id
     WHERE m.skip_extraction = FALSE
   `
