@@ -243,9 +243,9 @@ export default function Home() {
 
     // Save active tab to localStorage
     localStorage.setItem('activeTab', activeTab)
-  }, [activeTab])
+  }, [activeTab, fetchMessages, fetchReleases])
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       const res = await fetch('/api/messages?limit=100')
       if (res.ok) {
@@ -257,7 +257,7 @@ export default function Home() {
     } catch (err) {
       console.error('Failed to fetch messages:', err)
     }
-  }
+  }, [])
 
   const fetchReleases = useCallback(async () => {
     setLoading('extract')
