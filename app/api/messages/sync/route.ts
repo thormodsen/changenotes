@@ -23,18 +23,6 @@ function loadConfig() {
   return { slackToken, slackChannelId }
 }
 
-function isAutomatedBot(msg: SlackApiMessage): boolean {
-  const username = msg.username?.toLowerCase() || ''
-  const skipUsernames = ['bitrise', 'automated release notes']
-  const skipAppIds = ['A01BCRWUX4Z']
-
-  if (skipUsernames.some((name) => username.includes(name))) return true
-  if (msg.app_id && skipAppIds.includes(msg.app_id)) return true
-  if (msg.bot_id && username === 'bitrise') return true
-
-  return false
-}
-
 async function fetchThreadReplies(
   token: string,
   channelId: string,
@@ -50,7 +38,6 @@ async function fetchThreadReplies(
 
   return (data.messages || [])
     .slice(1)
-    .filter((msg: SlackApiMessage) => !isAutomatedBot(msg))
     .map((msg: SlackApiMessage) => ({
       id: msg.ts,
       text: msg.text || '',
@@ -115,7 +102,6 @@ export async function POST(request: NextRequest) {
       if (!data.ok) throw new Error(`Slack API error: ${data.error}`)
 
       for (const msg of (data.messages || []) as SlackApiMessage[]) {
-        if (isAutomatedBot(msg)) continue
         if (existingIds.has(msg.ts)) {
           skipped++
           continue
