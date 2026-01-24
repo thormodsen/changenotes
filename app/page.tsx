@@ -248,6 +248,18 @@ export default function Home() {
     }
   }, [])
 
+  const loadMoreMessages = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/messages?limit=100&offset=${messages.length}`)
+      if (res.ok) {
+        const data = await res.json()
+        setMessages(prev => [...prev, ...data.messages])
+      }
+    } catch (err) {
+      console.error('Failed to load more messages:', err)
+    }
+  }, [messages.length])
+
   const fetchReleases = useCallback(async () => {
     setLoading('extract')
     try {
@@ -799,6 +811,15 @@ export default function Home() {
                           </div>
                         </div>
                       ))}
+
+                    {messages.length < messagesTotal && (
+                      <button
+                        onClick={loadMoreMessages}
+                        className="w-full mt-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        Load more ({messagesTotal - messages.length} remaining)
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
