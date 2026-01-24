@@ -11,6 +11,7 @@ export interface SlackMessage {
   thread_replies: ThreadReply[] | null
   raw_json: Record<string, unknown> | null
   fetched_at: Date
+  skip_extraction: boolean
 }
 
 export interface ThreadReply {
@@ -48,8 +49,22 @@ export async function initializeSchema(): Promise<void> {
       username TEXT,
       thread_replies JSONB,
       raw_json JSONB,
-      fetched_at TIMESTAMPTZ DEFAULT NOW()
+      fetched_at TIMESTAMPTZ DEFAULT NOW(),
+      skip_extraction BOOLEAN DEFAULT FALSE
     )
+  `
+
+  // Add skip_extraction column if it doesn't exist (for existing tables)
+  await sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'slack_messages' AND column_name = 'skip_extraction'
+      ) THEN
+        ALTER TABLE slack_messages ADD COLUMN skip_extraction BOOLEAN DEFAULT FALSE;
+      END IF;
+    END $$;
   `
 
   await sql`
@@ -115,12 +130,53 @@ export async function getMessageIds(channelId: string): Promise<Set<string>> {
   return new Set(result.rows.map((r) => r.id))
 }
 
+export async function getAllMessages(options?: {
+  limit?: number
+  offset?: number
+}): Promise<{ messages: SlackMessage[]; total: number }> {
+  const limit = options?.limit || 100
+  const offset = options?.offset || 0
+
+  const [messagesResult, countResult] = await Promise.all([
+    sql<SlackMessage>`
+      SELECT * FROM slack_messages
+      ORDER BY timestamp DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `,
+    sql<{ count: string }>`SELECT COUNT(*) as count FROM slack_messages`,
+  ])
+
+  return {
+    messages: messagesResult.rows,
+    total: parseInt(countResult.rows[0].count),
+  }
+}
+
+export async function updateMessageSkipExtraction(
+  id: string,
+  skipExtraction: boolean
+): Promise<boolean> {
+  try {
+    await sql`
+      UPDATE slack_messages
+      SET skip_extraction = ${skipExtraction}
+      WHERE id = ${id}
+    `
+    return true
+  } catch (err) {
+    console.error('Failed to update skip_extraction:', err)
+    return false
+  }
+}
+
 export async function getMessagesWithoutReleases(promptVersion?: string): Promise<SlackMessage[]> {
   if (promptVersion) {
     // Get messages that either have no releases OR have releases with a different prompt version
+    // Skip messages marked with skip_extraction = true
     const result = await sql<SlackMessage>`
       SELECT m.* FROM slack_messages m
-      WHERE NOT EXISTS (
+      WHERE m.skip_extraction = FALSE
+      AND NOT EXISTS (
         SELECT 1 FROM releases r
         WHERE r.message_id = m.id
         AND r.prompt_version = ${promptVersion}
@@ -130,10 +186,11 @@ export async function getMessagesWithoutReleases(promptVersion?: string): Promis
     return result.rows
   }
 
-  // Get messages with no releases at all
+  // Get messages with no releases at all and skip_extraction = false
   const result = await sql<SlackMessage>`
     SELECT m.* FROM slack_messages m
-    WHERE NOT EXISTS (
+    WHERE m.skip_extraction = FALSE
+    AND NOT EXISTS (
       SELECT 1 FROM releases r WHERE r.message_id = m.id
     )
     ORDER BY m.timestamp DESC

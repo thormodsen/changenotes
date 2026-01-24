@@ -153,6 +153,7 @@ export async function POST(request: NextRequest) {
             thread_replies: threadReplies || null,
             raw_json: (msg as unknown as Record<string, unknown>) || null,
             fetched_at: new Date(),
+            skip_extraction: false,
           })
         }
       }

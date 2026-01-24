@@ -2,6 +2,23 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
+interface SlackMessage {
+  id: string
+  channel_id: string
+  text: string
+  timestamp: string
+  user_id: string | null
+  username: string | null
+  thread_replies: Array<{
+    id: string
+    text: string
+    timestamp: string
+    user_id: string
+    username?: string
+  }> | null
+  skip_extraction: boolean
+}
+
 interface Release {
   id: string
   message_id: string
@@ -17,43 +34,61 @@ interface Release {
   published_at: string | null
 }
 
-interface Stats {
-  totalMessages: number
-  totalReleases: number
-  publishedReleases: number
-  messagesWithoutReleases: number
-}
-
 type PresetKey = '7days' | '30days' | 'month'
+type Tab = 'messages' | 'releases' | 'public'
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<Tab>('messages')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [releases, setReleases] = useState<Release[]>([])
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [loading, setLoading] = useState<'sync' | 'extract' | 'releases' | null>(null)
+  const [activePreset, setActivePreset] = useState<PresetKey | null>(null)
+  const [loading, setLoading] = useState<'sync' | 'extract' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
-  const [activePreset, setActivePreset] = useState<PresetKey | null>(null)
   const [dbInitialized, setDbInitialized] = useState(false)
+
+  // Messages state
+  const [messages, setMessages] = useState<SlackMessage[]>([])
+  const [messagesTotal, setMessagesTotal] = useState(0)
+
+  // Releases state
+  const [releases, setReleases] = useState<Release[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Release>>({})
 
-  const fetchStats = useCallback(async () => {
-    try {
-      const res = await fetch('/api/stats')
-      if (res.ok) {
-        const data = await res.json()
-        setStats(data)
-        setDbInitialized(true)
-      }
-    } catch {
-      // Stats not available yet
-    }
+  useEffect(() => {
+    checkDb()
   }, [])
 
+  useEffect(() => {
+    if (activeTab === 'messages') fetchMessages()
+    else if (activeTab === 'releases') fetchReleases()
+  }, [activeTab])
+
+  const checkDb = async () => {
+    try {
+      const res = await fetch('/api/stats')
+      if (res.ok) setDbInitialized(true)
+    } catch {
+      // DB not initialized yet
+    }
+  }
+
+  const fetchMessages = async () => {
+    try {
+      const res = await fetch('/api/messages?limit=100')
+      if (res.ok) {
+        const data = await res.json()
+        setMessages(data.messages)
+        setMessagesTotal(data.total)
+      }
+    } catch (err) {
+      console.error('Failed to fetch messages:', err)
+    }
+  }
+
   const fetchReleases = useCallback(async () => {
-    setLoading('releases')
+    setLoading('extract')
     try {
       const params = new URLSearchParams()
       if (startDate) params.append('start', startDate)
@@ -72,34 +107,12 @@ export default function Home() {
     }
   }, [startDate, endDate])
 
-  useEffect(() => {
-    fetchStats()
-  }, [fetchStats])
-
-  // Load releases on mount
-  useEffect(() => {
-    const loadInitialReleases = async () => {
-      setLoading('releases')
-      try {
-        const res = await fetch('/api/releases')
-        const data = await res.json()
-        if (res.ok) setReleases(data.releases || [])
-      } catch {
-        // Silent fail on initial load
-      } finally {
-        setLoading(null)
-      }
-    }
-    loadInitialReleases()
-  }, [])
-
   const initDb = async () => {
     try {
       const res = await fetch('/api/init', { method: 'POST' })
       if (!res.ok) throw new Error('Failed to initialize database')
       setDbInitialized(true)
       setMessage('Database initialized')
-      await fetchStats()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to initialize')
     }
@@ -153,8 +166,7 @@ export default function Home() {
       const msg = `Synced ${data.inserted} new messages (${data.skipped} already existed).`
       const extractMsg = data.extracted > 0 ? ` Extracted ${data.extracted} releases.` : ''
       setMessage(msg + extractMsg)
-      await fetchStats()
-      await fetchReleases()
+      await fetchMessages()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sync failed')
     } finally {
@@ -177,12 +189,27 @@ export default function Home() {
       setMessage(
         `Extracted ${data.extracted} releases from ${data.messagesProcessed} messages (prompt v${data.promptVersion})`
       )
-      await fetchStats()
       await fetchReleases()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Extraction failed')
     } finally {
       setLoading(null)
+    }
+  }
+
+  const toggleSkipExtraction = async (id: string, currentSkip: boolean) => {
+    try {
+      const res = await fetch(`/api/messages/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skipExtraction: !currentSkip }),
+      })
+
+      if (!res.ok) throw new Error('Failed to update message')
+
+      await fetchMessages()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update')
     }
   }
 
@@ -197,7 +224,6 @@ export default function Home() {
       if (!res.ok) throw new Error('Failed to update publish status')
 
       await fetchReleases()
-      await fetchStats()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update')
     }
@@ -262,45 +288,29 @@ export default function Home() {
     <main className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Changelog Viewer</h1>
-          <p className="text-gray-500 mt-1">
-            Sync messages from Slack and publish your changelog
-          </p>
+          <h1 className="text-2xl font-semibold text-gray-900">Changelog Manager</h1>
+          <p className="text-gray-500 mt-1">Manage Slack messages and publish your changelog</p>
         </div>
-        <a
-          href="/changelog"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-        >
-          View Public Changelog
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
-        </a>
       </div>
 
-      {/* Stats Bar */}
-      {stats && (
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="text-2xl font-semibold text-gray-900">{stats.totalMessages}</div>
-            <div className="text-sm text-gray-500">Messages Synced</div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="text-2xl font-semibold text-gray-900">{stats.messagesWithoutReleases}</div>
-            <div className="text-sm text-gray-500">Pending Extraction</div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="text-2xl font-semibold text-gray-900">{stats.totalReleases}</div>
-            <div className="text-sm text-gray-500">Releases Extracted</div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="text-2xl font-semibold text-lime-600">{stats.publishedReleases}</div>
-            <div className="text-sm text-gray-500">Published</div>
-          </div>
-        </div>
-      )}
+      {/* Tabs */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex gap-8">
+          {(['messages', 'releases', 'public'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab
+                  ? 'border-gray-900 text-gray-900'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {tab === 'messages' ? 'Slack Messages' : tab === 'releases' ? 'Release Notes' : 'Public Changelog'}
+            </button>
+          ))}
+        </nav>
+      </div>
 
       <div className="flex gap-6">
         {/* Left Panel - Controls */}
@@ -411,184 +421,277 @@ export default function Home() {
           )}
         </div>
 
-        {/* Right Panel - Results */}
+        {/* Right Panel - Content */}
         <div className="flex-1 min-w-0">
-          <div className="bg-white rounded-xl border border-gray-200 min-h-[500px]">
-            {loading === 'releases' || loading === 'extract' ? (
-              <div className="flex flex-col items-center justify-center h-[500px] text-gray-500">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-purple-500 mb-4" />
-                <p>{loading === 'extract' ? 'Extracting releases with Claude...' : 'Loading releases...'}</p>
-                <p className="text-sm text-gray-400 mt-1">This may take a moment</p>
-              </div>
-            ) : releases.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-[500px] text-gray-500">
-                <svg className="w-12 h-12 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <p className="font-medium text-gray-900">No Releases Yet</p>
-                <p className="text-sm mt-1 text-center max-w-xs">
-                  Select a date range and click "Sync & Extract" to fetch messages from Slack and extract releases using Claude
-                </p>
-              </div>
-            ) : (
+          {activeTab === 'messages' && (
+            <div className="bg-white rounded-xl border border-gray-200 min-h-[500px]">
               <div className="p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-medium text-gray-900">
-                    {releases.length} release{releases.length !== 1 ? 's' : ''}
+                    {messagesTotal} message{messagesTotal !== 1 ? 's' : ''}
                   </h2>
                 </div>
 
-                <div className="space-y-6">
-                  {sortedDates.map((date) => (
-                    <div key={date}>
-                      <h3 className="text-sm font-medium text-gray-500 mb-3">
-                        {new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                      </h3>
-                      <div className="space-y-3">
-                        {groupedReleases[date].map((release) => {
-                          const isEditing = editingId === release.id
-                          return (
-                            <div
-                              key={release.id}
-                              className={`p-4 rounded-lg border ${
-                                release.published
-                                  ? 'bg-green-50 border-green-200'
-                                  : 'bg-gray-50 border-gray-100'
-                              }`}
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <span
-                                      className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                        typeColors[release.type] || 'bg-gray-100 text-gray-800'
-                                      }`}
-                                    >
-                                      {release.type}
-                                    </span>
-                                    {release.published && (
-                                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                        Published
+                {messages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-[400px] text-gray-500">
+                    <p>No messages synced yet. Select a date range and click "Sync & Extract".</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`p-4 rounded-lg border ${
+                          msg.skip_extraction ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs text-gray-500">
+                                {new Date(msg.timestamp).toLocaleString()}
+                              </span>
+                              {msg.username && (
+                                <span className="text-xs text-gray-500">@{msg.username}</span>
+                              )}
+                              {msg.skip_extraction && (
+                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-700">
+                                  Skipped
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-900 whitespace-pre-wrap">{msg.text}</p>
+                            {msg.thread_replies && msg.thread_replies.length > 0 && (
+                              <div className="mt-2 pl-4 border-l-2 border-gray-200">
+                                <p className="text-xs text-gray-500 mb-1">
+                                  {msg.thread_replies.length} {msg.thread_replies.length === 1 ? 'reply' : 'replies'}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          <button
+                            onClick={() => toggleSkipExtraction(msg.id, msg.skip_extraction)}
+                            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                              msg.skip_extraction
+                                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                          >
+                            {msg.skip_extraction ? 'Include' : 'Skip'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'releases' && (
+            <div className="bg-white rounded-xl border border-gray-200 min-h-[500px]">
+              {loading === 'extract' ? (
+                <div className="flex flex-col items-center justify-center h-[500px] text-gray-500">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-purple-500 mb-4" />
+                  <p>Loading releases...</p>
+                </div>
+              ) : releases.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-[500px] text-gray-500">
+                  <svg className="w-12 h-12 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="font-medium text-gray-900">No Releases Yet</p>
+                  <p className="text-sm mt-1 text-center max-w-xs">
+                    Sync messages and extract releases to see them here
+                  </p>
+                </div>
+              ) : (
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="font-medium text-gray-900">
+                      {releases.length} release{releases.length !== 1 ? 's' : ''}
+                    </h2>
+                  </div>
+
+                  <div className="space-y-6">
+                    {sortedDates.map((date) => (
+                      <div key={date}>
+                        <h3 className="text-sm font-medium text-gray-500 mb-3">
+                          {new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </h3>
+                        <div className="space-y-3">
+                          {groupedReleases[date].map((release) => {
+                            const isEditing = editingId === release.id
+                            return (
+                              <div
+                                key={release.id}
+                                className={`p-4 rounded-lg border ${
+                                  release.published
+                                    ? 'bg-green-50 border-green-200'
+                                    : 'bg-gray-50 border-gray-100'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <span
+                                        className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                          typeColors[release.type] || 'bg-gray-100 text-gray-800'
+                                        }`}
+                                      >
+                                        {release.type}
                                       </span>
-                                    )}
-                                    {release.prompt_version && (
-                                      <span className="text-xs text-gray-400">v{release.prompt_version}</span>
+                                      {release.published && (
+                                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                          Published
+                                        </span>
+                                      )}
+                                      {release.prompt_version && (
+                                        <span className="text-xs text-gray-400">v{release.prompt_version}</span>
+                                      )}
+                                    </div>
+
+                                    {isEditing ? (
+                                      <div className="space-y-3">
+                                        <div>
+                                          <label className="block text-xs text-gray-600 mb-1">Title</label>
+                                          <input
+                                            type="text"
+                                            value={editForm.title || ''}
+                                            onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-xs text-gray-600 mb-1">Description</label>
+                                          <textarea
+                                            value={editForm.description || ''}
+                                            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                            rows={2}
+                                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-xs text-gray-600 mb-1">Why this matters</label>
+                                          <textarea
+                                            value={editForm.why_this_matters || ''}
+                                            onChange={(e) => setEditForm({ ...editForm, why_this_matters: e.target.value })}
+                                            rows={2}
+                                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-xs text-gray-600 mb-1">Impact</label>
+                                          <textarea
+                                            value={editForm.impact || ''}
+                                            onChange={(e) => setEditForm({ ...editForm, impact: e.target.value })}
+                                            rows={2}
+                                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                          />
+                                        </div>
+                                        <div className="flex gap-2">
+                                          <button
+                                            onClick={() => saveEdit(release.id)}
+                                            className="px-3 py-1 bg-gray-900 text-white rounded text-sm hover:bg-gray-800"
+                                          >
+                                            Save
+                                          </button>
+                                          <button
+                                            onClick={cancelEdit}
+                                            className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <h4 className="font-medium text-gray-900">{release.title}</h4>
+                                        {release.description && (
+                                          <p className="text-sm text-gray-600 mt-1">{release.description}</p>
+                                        )}
+
+                                        {release.why_this_matters && (
+                                          <div className="mt-3 p-2 bg-blue-50 rounded text-sm">
+                                            <span className="font-medium text-blue-800">Why this matters: </span>
+                                            <span className="text-blue-700">{release.why_this_matters}</span>
+                                          </div>
+                                        )}
+
+                                        {release.impact && (
+                                          <div className="mt-2 p-2 bg-amber-50 rounded text-sm">
+                                            <span className="font-medium text-amber-800">Impact: </span>
+                                            <span className="text-amber-700">{release.impact}</span>
+                                          </div>
+                                        )}
+                                      </>
                                     )}
                                   </div>
 
-                                  {isEditing ? (
-                                    <div className="space-y-3">
-                                      <div>
-                                        <label className="block text-xs text-gray-600 mb-1">Title</label>
-                                        <input
-                                          type="text"
-                                          value={editForm.title || ''}
-                                          onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="block text-xs text-gray-600 mb-1">Description</label>
-                                        <textarea
-                                          value={editForm.description || ''}
-                                          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                                          rows={2}
-                                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="block text-xs text-gray-600 mb-1">Why this matters</label>
-                                        <textarea
-                                          value={editForm.why_this_matters || ''}
-                                          onChange={(e) => setEditForm({ ...editForm, why_this_matters: e.target.value })}
-                                          rows={2}
-                                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="block text-xs text-gray-600 mb-1">Impact</label>
-                                        <textarea
-                                          value={editForm.impact || ''}
-                                          onChange={(e) => setEditForm({ ...editForm, impact: e.target.value })}
-                                          rows={2}
-                                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                        />
-                                      </div>
-                                      <div className="flex gap-2">
-                                        <button
-                                          onClick={() => saveEdit(release.id)}
-                                          className="px-3 py-1 bg-gray-900 text-white rounded text-sm hover:bg-gray-800"
-                                        >
-                                          Save
-                                        </button>
-                                        <button
-                                          onClick={cancelEdit}
-                                          className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
-                                        >
-                                          Cancel
-                                        </button>
-                                      </div>
+                                  {!isEditing && (
+                                    <div className="flex flex-col gap-2">
+                                      <button
+                                        onClick={() => togglePublish(release.id, release.published)}
+                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                          release.published
+                                            ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                            : 'bg-green-500 text-white hover:bg-green-600'
+                                        }`}
+                                      >
+                                        {release.published ? 'Unpublish' : 'Publish'}
+                                      </button>
+                                      <button
+                                        onClick={() => startEdit(release)}
+                                        className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
+                                      >
+                                        Edit
+                                      </button>
                                     </div>
-                                  ) : (
-                                    <>
-                                      <h4 className="font-medium text-gray-900">{release.title}</h4>
-                                      {release.description && (
-                                        <p className="text-sm text-gray-600 mt-1">{release.description}</p>
-                                      )}
-
-                                      {release.why_this_matters && (
-                                        <div className="mt-3 p-2 bg-blue-50 rounded text-sm">
-                                          <span className="font-medium text-blue-800">Why this matters: </span>
-                                          <span className="text-blue-700">{release.why_this_matters}</span>
-                                        </div>
-                                      )}
-
-                                      {release.impact && (
-                                        <div className="mt-2 p-2 bg-amber-50 rounded text-sm">
-                                          <span className="font-medium text-amber-800">Impact: </span>
-                                          <span className="text-amber-700">{release.impact}</span>
-                                        </div>
-                                      )}
-                                    </>
                                   )}
                                 </div>
-
-                                {!isEditing && (
-                                  <div className="flex flex-col gap-2">
-                                    <button
-                                      onClick={() => togglePublish(release.id, release.published)}
-                                      className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                                        release.published
-                                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                          : 'bg-green-500 text-white hover:bg-green-600'
-                                      }`}
-                                    >
-                                      {release.published ? 'Unpublish' : 'Publish'}
-                                    </button>
-                                    <button
-                                      onClick={() => startEdit(release)}
-                                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
-                                    >
-                                      Edit
-                                    </button>
-                                  </div>
-                                )}
                               </div>
-                            </div>
-                          )
-                        })}
+                            )
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'public' && (
+            <div className="bg-white rounded-xl border border-gray-200 min-h-[500px]">
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-medium text-gray-900">Public Changelog Preview</h2>
+                  <a
+                    href="/changelog"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                  >
+                    Open in New Tab
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                </div>
+                <iframe
+                  src="/changelog"
+                  className="w-full h-[600px] border border-gray-200 rounded-lg"
+                  title="Public Changelog Preview"
+                />
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </main>
