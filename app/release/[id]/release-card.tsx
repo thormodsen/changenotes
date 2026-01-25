@@ -35,7 +35,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
         ? releaseNote.date
         : releaseNote.date + 'T00:00:00')
   const formattedDate = !isNaN(dateValue.getTime())
-    ? dateValue.toLocaleDateString('en-US', {
+    ? dateValue.toLocaleDateString('en-GB', {
         month: 'long',
         day: 'numeric',
         year: 'numeric',

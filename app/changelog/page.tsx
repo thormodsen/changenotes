@@ -23,7 +23,7 @@ function formatDate(date: string | Date, options?: Intl.DateTimeFormatOptions): 
 
   if (isNaN(dateObj.getTime())) return ''
 
-  return dateObj.toLocaleDateString('en-US', options || {
+  return dateObj.toLocaleDateString('en-GB', options || {
     year: 'numeric',
     month: 'long',
     day: 'numeric',

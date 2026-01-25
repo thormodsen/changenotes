@@ -17,7 +17,7 @@ function formatDate(date: string | Date): string {
 
   if (isNaN(dateObj.getTime())) return ''
 
-  return dateObj.toLocaleDateString('en-US', {
+  return dateObj.toLocaleDateString('en-GB', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
