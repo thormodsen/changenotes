@@ -68,6 +68,17 @@ export default function ChangelogPage() {
     })
   }, [fetchReleases])
 
+  // Scroll to anchor after releases load
+  useEffect(() => {
+    if (!loading && window.location.hash) {
+      const id = window.location.hash.slice(1)
+      const el = document.getElementById(id)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' })
+      }
+    }
+  }, [loading])
+
   const loadMore = async () => {
     const data = await fetchReleases(releases.length)
     setReleases((prev) => [...prev, ...(data.releases || [])])
