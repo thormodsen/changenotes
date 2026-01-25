@@ -599,6 +599,8 @@ export interface RelatedRelease {
   type: string
   date: string
   description: string | null
+  why_this_matters: string | null
+  impact: string | null
 }
 
 /**
@@ -608,7 +610,7 @@ export interface RelatedRelease {
  */
 export async function getParentRelease(releaseId: string): Promise<RelatedRelease | null> {
   const result = await sql<RelatedRelease>`
-    SELECT r.id, r.title, r.type, r.date, r.description
+    SELECT r.id, r.title, r.type, r.date, r.description, r.why_this_matters, r.impact
     FROM releases r
     INNER JOIN slack_messages parent_msg ON r.message_id = parent_msg.id
     WHERE parent_msg.id = (
@@ -630,7 +632,7 @@ export async function getParentRelease(releaseId: string): Promise<RelatedReleas
  */
 export async function getSiblingReleases(releaseId: string): Promise<RelatedRelease[]> {
   const result = await sql<RelatedRelease>`
-    SELECT DISTINCT r.id, r.title, r.type, r.date, r.description
+    SELECT DISTINCT r.id, r.title, r.type, r.date, r.description, r.why_this_matters, r.impact
     FROM releases r
     INNER JOIN slack_messages m ON r.message_id = m.id
     WHERE m.thread_ts = (
@@ -661,7 +663,7 @@ export async function getRelatedReleases(
       FROM releases
       WHERE id = ${releaseId}
     )
-    SELECT r.id, r.title, r.type, r.date, r.description,
+    SELECT r.id, r.title, r.type, r.date, r.description, r.why_this_matters, r.impact,
            ts_rank(r.search_vector, plainto_tsquery('english', cr.title)) as rank
     FROM releases r, current_release cr
     WHERE r.id != ${releaseId}

@@ -66,7 +66,19 @@ function RelatedReleaseCard({ release }: { release: RelatedRelease }) {
         </h3>
       </Link>
       {release.description && (
-        <p className="text-gray-700 leading-relaxed">{release.description}</p>
+        <p className="text-gray-700 leading-relaxed mb-4">{release.description}</p>
+      )}
+      {release.why_this_matters && (
+        <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
+          <p className="text-sm font-medium text-blue-900 mb-1">Why this matters</p>
+          <p className="text-sm text-blue-800">{release.why_this_matters}</p>
+        </div>
+      )}
+      {release.impact && (
+        <div className="mt-3 p-4 bg-amber-50 rounded-lg border border-amber-100">
+          <p className="text-sm font-medium text-amber-900 mb-1">Impact</p>
+          <p className="text-sm text-amber-800">{release.impact}</p>
+        </div>
       )}
     </article>
   )
