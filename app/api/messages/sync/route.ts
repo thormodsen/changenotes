@@ -27,7 +27,7 @@ async function fetchThreadReplies(
   token: string,
   channelId: string,
   threadTs: string
-): Promise<Array<{ id: string; text: string; timestamp: string; user_id: string; username?: string }>> {
+): Promise<SlackApiMessage[]> {
   const res = await fetch(
     `https://slack.com/api/conversations.replies?channel=${channelId}&ts=${threadTs}&limit=100`,
     { headers: { Authorization: `Bearer ${token}` } }
@@ -36,15 +36,8 @@ async function fetchThreadReplies(
   const data = await res.json()
   if (!data.ok) return []
 
-  return (data.messages || [])
-    .slice(1)
-    .map((msg: SlackApiMessage) => ({
-      id: msg.ts,
-      text: msg.text || '',
-      timestamp: msg.ts,
-      user_id: msg.user || '',
-      username: msg.username,
-    }))
+  // Return all messages including parent, we'll filter later
+  return data.messages || []
 }
 
 export async function POST(request: NextRequest) {
@@ -107,13 +100,9 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Fetch thread replies if present
-        let threadReplies: Array<{ id: string; text: string; timestamp: string; user_id: string; username?: string }> | undefined
-        if (msg.thread_ts && msg.reply_count && msg.reply_count > 0) {
-          threadReplies = await fetchThreadReplies(config.slackToken, config.slackChannelId, msg.thread_ts)
-        }
-
         const timestamp = new Date(parseFloat(msg.ts) * 1000)
+
+        // Insert the parent message
         const success = await insertMessage({
           id: msg.ts,
           channelId: config.slackChannelId,
@@ -121,14 +110,13 @@ export async function POST(request: NextRequest) {
           timestamp,
           userId: msg.user,
           username: msg.username,
-          threadReplies,
+          threadTs: msg.thread_ts,
           rawJson: msg as unknown as Record<string, unknown>,
         })
 
         if (success) {
           inserted++
           existingIds.add(msg.ts)
-          // Track new messages for extraction
           newMessages.push({
             id: msg.ts,
             channel_id: config.slackChannelId,
@@ -137,11 +125,58 @@ export async function POST(request: NextRequest) {
             user_id: msg.user || null,
             username: msg.username || null,
             thread_ts: msg.thread_ts || null,
-            thread_replies: threadReplies || null,
+            thread_replies: null,
             raw_json: (msg as unknown as Record<string, unknown>) || null,
             fetched_at: new Date(),
             skip_extraction: false,
           })
+        }
+
+        // If this message has replies, fetch and save them as separate messages
+        if (msg.thread_ts === msg.ts && msg.reply_count && msg.reply_count > 0) {
+          const threadMessages = await fetchThreadReplies(
+            config.slackToken,
+            config.slackChannelId,
+            msg.ts
+          )
+
+          // Skip the first message (it's the parent we already saved)
+          for (const reply of threadMessages.slice(1)) {
+            if (existingIds.has(reply.ts)) {
+              skipped++
+              continue
+            }
+
+            const replyTimestamp = new Date(parseFloat(reply.ts) * 1000)
+            const replySuccess = await insertMessage({
+              id: reply.ts,
+              channelId: config.slackChannelId,
+              text: reply.text || '',
+              timestamp: replyTimestamp,
+              userId: reply.user,
+              username: reply.username,
+              threadTs: reply.thread_ts, // Points to parent
+              rawJson: reply as unknown as Record<string, unknown>,
+            })
+
+            if (replySuccess) {
+              inserted++
+              existingIds.add(reply.ts)
+              newMessages.push({
+                id: reply.ts,
+                channel_id: config.slackChannelId,
+                text: reply.text || '',
+                timestamp: replyTimestamp,
+                user_id: reply.user || null,
+                username: reply.username || null,
+                thread_ts: reply.thread_ts || null,
+                thread_replies: null,
+                raw_json: (reply as unknown as Record<string, unknown>) || null,
+                fetched_at: new Date(),
+                skip_extraction: false,
+              })
+            }
+          }
         }
       }
 

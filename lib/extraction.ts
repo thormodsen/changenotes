@@ -1,4 +1,4 @@
-import { type SlackMessage, type ThreadReply, insertRelease } from './db/client'
+import { type SlackMessage, insertRelease, updateMessageSkipExtraction } from './db/client'
 
 interface ExtractedRelease {
   date: string
@@ -21,15 +21,14 @@ function loadConfig() {
   return { openRouterApiKey, langfuseSecretKey, langfusePublicKey, langfuseBaseUrl }
 }
 
-async function fetchLangfusePrompt(config: {
-  secretKey: string
-  publicKey: string
-  baseUrl?: string
-}): Promise<{ prompt: string; version: string } | null> {
+async function fetchLangfusePrompt(
+  config: { secretKey: string; publicKey: string; baseUrl?: string },
+  promptName: string
+): Promise<{ prompt: string; version: string } | null> {
   const baseUrl = config.baseUrl || 'https://cloud.langfuse.com'
   const auth = Buffer.from(`${config.publicKey}:${config.secretKey}`).toString('base64')
 
-  const res = await fetch(`${baseUrl}/api/public/v2/prompts/release-extraction`, {
+  const res = await fetch(`${baseUrl}/api/public/v2/prompts/${promptName}`, {
     headers: { Authorization: `Basic ${auth}` },
   })
 
@@ -54,23 +53,9 @@ async function fetchLangfusePrompt(config: {
   }
 }
 
-function formatMessage(msg: SlackMessage): string {
+function formatMessageSimple(msg: SlackMessage): string {
   const date = msg.timestamp.toISOString().split('T')[0]
-  let text = `[${msg.id}] [${date}] ${msg.text}`
-
-  const replies = msg.thread_replies as ThreadReply[] | null
-  if (replies?.length) {
-    const threadText = replies
-      .map((reply) => {
-        const replyDate = new Date(parseFloat(reply.timestamp) * 1000).toISOString().split('T')[0]
-        const author = reply.username || `user-${reply.user_id.substring(0, 8)}`
-        return `  └─ [${reply.id}] [${replyDate}] @${author}: ${reply.text}`
-      })
-      .join('\n')
-    text += `\n  [Thread replies (${replies.length}):]\n${threadText}`
-  }
-
-  return text
+  return `[${msg.id}] [${date}] ${msg.text}`
 }
 
 function parseReleasesFromResponse(textContent: string): ExtractedRelease[] {
@@ -98,6 +83,123 @@ function parseReleasesFromResponse(textContent: string): ExtractedRelease[] {
   }
 }
 
+function parseClassificationResponse(textContent: string): string[] {
+  let jsonText = textContent.trim()
+
+  if (jsonText.startsWith('```')) {
+    const lines = jsonText.split('\n')
+    lines.shift()
+    if (lines[lines.length - 1]?.trim() === '```') lines.pop()
+    jsonText = lines.join('\n').trim()
+  }
+
+  try {
+    const ids = JSON.parse(jsonText) as string[]
+    return Array.isArray(ids) ? ids : []
+  } catch {
+    console.error('Failed to parse classification JSON:', jsonText.substring(0, 200))
+    return []
+  }
+}
+
+/**
+ * Pass 1: Classify which messages in a group are release announcements
+ */
+async function classifyMessages(
+  messages: SlackMessage[],
+  config: { openRouterApiKey: string }
+): Promise<Set<string>> {
+  if (messages.length === 0) return new Set()
+
+  // For single messages or very few, assume they're all releases
+  if (messages.length <= 2) {
+    return new Set(messages.map((m) => m.id))
+  }
+
+  const messagesText = messages
+    .map((msg) => {
+      const date = msg.timestamp.toISOString().split('T')[0]
+      const preview = msg.text.substring(0, 300) + (msg.text.length > 300 ? '...' : '')
+      return `[${msg.id}] [${date}] ${preview}`
+    })
+    .join('\n\n')
+
+  const classificationPrompt = `You are analyzing Slack messages to identify which ones are release announcements, feature updates, or rollout notifications.
+
+Messages that ARE releases:
+- Feature announcements ("We released X", "Now available", "Introducing")
+- Rollout updates ("Rolling out to Spain", "Now live in UK")
+- Version updates ("v1.2 released", "Updated to include")
+- Bug fix announcements
+
+Messages that are NOT releases:
+- Questions ("Any plans for...?", "Could you share...?")
+- Congratulations or reactions ("Great work!", "Congrats!")
+- Follow-up questions or clarifications
+- Simple acknowledgments ("Thanks", "Got it", "ah I see")
+- Requests for information
+
+Return ONLY a JSON array of message IDs that are release announcements.
+Example: ["1234567890.123456", "1234567890.789012"]
+
+Messages to analyze:
+
+${messagesText}`
+
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.openRouterApiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://changenotes.vercel.app',
+        'X-Title': 'Changelog Viewer',
+      },
+      body: JSON.stringify({
+        model: 'anthropic/claude-sonnet-4',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: classificationPrompt }],
+      }),
+    })
+
+    if (!res.ok) {
+      console.error('Classification API error:', res.status)
+      // Fallback: return all message IDs
+      return new Set(messages.map((m) => m.id))
+    }
+
+    const data = await res.json()
+    const textContent = data.choices?.[0]?.message?.content
+
+    if (!textContent) {
+      return new Set(messages.map((m) => m.id))
+    }
+
+    const releaseIds = parseClassificationResponse(textContent)
+    return new Set(releaseIds)
+  } catch (err) {
+    console.error('Classification error:', err)
+    return new Set(messages.map((m) => m.id))
+  }
+}
+
+/**
+ * Group messages by thread (thread_ts or self for standalone messages)
+ */
+function groupMessagesByThread(messages: SlackMessage[]): Map<string, SlackMessage[]> {
+  const groups = new Map<string, SlackMessage[]>()
+
+  for (const msg of messages) {
+    // Use thread_ts if it's a thread, otherwise use the message's own ID
+    const groupKey = msg.thread_ts || msg.id
+    const existing = groups.get(groupKey) || []
+    existing.push(msg)
+    groups.set(groupKey, existing)
+  }
+
+  return groups
+}
+
 export async function extractReleasesFromMessages(
   messages: SlackMessage[]
 ): Promise<{ extracted: number; promptVersion: string; errors: string[] }> {
@@ -112,11 +214,14 @@ export async function extractReleasesFromMessages(
     throw new Error('Langfuse configuration is required')
   }
 
-  const langfuseResult = await fetchLangfusePrompt({
-    secretKey: config.langfuseSecretKey,
-    publicKey: config.langfusePublicKey,
-    baseUrl: config.langfuseBaseUrl,
-  })
+  const langfuseResult = await fetchLangfusePrompt(
+    {
+      secretKey: config.langfuseSecretKey,
+      publicKey: config.langfusePublicKey,
+      baseUrl: config.langfuseBaseUrl,
+    },
+    'release-extraction'
+  )
 
   if (!langfuseResult) {
     throw new Error('Langfuse prompt "release-extraction" not found')
@@ -127,62 +232,88 @@ export async function extractReleasesFromMessages(
   let totalExtracted = 0
   const errors: string[] = []
 
-  for (const msg of messages) {
-    try {
-      const formattedMessage = formatMessage(msg)
-      const userContent = `${prompt}\n\nMessage to analyze:\n\n${formattedMessage}`
+  // Group messages by thread
+  const threadGroups = groupMessagesByThread(messages)
 
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${config.openRouterApiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://changelog-viewer.vercel.app',
-          'X-Title': 'Changelog Viewer',
-        },
-        body: JSON.stringify({
-          model: 'anthropic/claude-sonnet-4',
-          max_tokens: 4096,
-          messages: [{ role: 'user', content: userContent }],
-        }),
-      })
+  for (const [threadId, threadMessages] of Array.from(threadGroups.entries())) {
+    // Pass 1: Classify which messages are release-worthy
+    const releaseIds = await classifyMessages(threadMessages, {
+      openRouterApiKey: config.openRouterApiKey,
+    })
 
-      if (!res.ok) {
-        const errorText = await res.text()
-        errors.push(`Message ${msg.id}: API error ${res.status}`)
-        console.error(`OpenRouter error for ${msg.id}:`, errorText)
-        continue
+    console.log(
+      `Thread ${threadId}: ${releaseIds.size}/${threadMessages.length} messages identified as releases`
+    )
+
+    // Mark non-release messages with skip_extraction
+    for (const msg of threadMessages) {
+      if (!releaseIds.has(msg.id)) {
+        await updateMessageSkipExtraction(msg.id, true)
+      }
+    }
+
+    // Pass 2: Extract releases from identified messages
+    for (const msg of threadMessages) {
+      if (!releaseIds.has(msg.id)) {
+        continue // Skip non-release messages
       }
 
-      const data = await res.json()
-      const textContent = data.choices?.[0]?.message?.content
+      try {
+        const formattedMessage = formatMessageSimple(msg)
+        const userContent = `${prompt}\n\nMessage to analyze:\n\n${formattedMessage}`
 
-      if (!textContent) {
-        continue
-      }
-
-      const releases = parseReleasesFromResponse(textContent)
-
-      // Use the Slack message timestamp as the release date
-      const messageDate = msg.timestamp.toISOString().split('T')[0]
-
-      for (const release of releases) {
-        await insertRelease({
-          messageId: msg.id,
-          date: messageDate,
-          title: release.title,
-          description: release.description,
-          type: release.type,
-          whyThisMatters: release.whyThisMatters,
-          impact: release.impact,
-          promptVersion,
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${config.openRouterApiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://changenotes.vercel.app',
+            'X-Title': 'Changelog Viewer',
+          },
+          body: JSON.stringify({
+            model: 'anthropic/claude-sonnet-4',
+            max_tokens: 4096,
+            messages: [{ role: 'user', content: userContent }],
+          }),
         })
-        totalExtracted++
+
+        if (!res.ok) {
+          const errorText = await res.text()
+          errors.push(`Message ${msg.id}: API error ${res.status}`)
+          console.error(`OpenRouter error for ${msg.id}:`, errorText)
+          continue
+        }
+
+        const data = await res.json()
+        const textContent = data.choices?.[0]?.message?.content
+
+        if (!textContent) {
+          continue
+        }
+
+        const releases = parseReleasesFromResponse(textContent)
+
+        // Use the Slack message timestamp as the release date
+        const messageDate = msg.timestamp.toISOString().split('T')[0]
+
+        for (const release of releases) {
+          await insertRelease({
+            messageId: msg.id,
+            date: messageDate,
+            title: release.title,
+            description: release.description,
+            type: release.type,
+            whyThisMatters: release.whyThisMatters,
+            impact: release.impact,
+            promptVersion,
+          })
+          totalExtracted++
+        }
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : 'Unknown error'
+        errors.push(`Message ${msg.id}: ${errMsg}`)
+        console.error(`Failed to process message ${msg.id}:`, err)
       }
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : 'Unknown error'
-      errors.push(`Message ${msg.id}: ${errMsg}`)
-      console.error(`Failed to process message ${msg.id}:`, err)
     }
   }
 
