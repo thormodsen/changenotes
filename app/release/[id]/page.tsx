@@ -10,7 +10,7 @@ export default async function ReleasePage({ params }: PageProps) {
   const { id } = await params
   const release = await getReleaseById(id)
 
-  if (!release) {
+  if (!release || !release.shared) {
     notFound()
   }
 

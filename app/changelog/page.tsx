@@ -13,6 +13,7 @@ interface Release {
   impact: string | null
   marketing_title: string | null
   message_timestamp?: string
+  shared: boolean
 }
 
 function formatDate(date: string | Date, options?: Intl.DateTimeFormatOptions): string {
@@ -175,7 +176,7 @@ export default function ChangelogPage() {
                         </div>
                       )}
 
-                      {release.marketing_title && (
+                      {release.shared && (
                         <div className="mt-4 pt-4 border-t border-gray-100">
                           <a
                             href={`/release/${release.id}`}

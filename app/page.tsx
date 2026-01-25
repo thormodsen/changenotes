@@ -37,6 +37,7 @@ interface Release {
   marketing_title: string | null
   marketing_description: string | null
   marketing_why_this_matters: string | null
+  shared: boolean
 }
 
 type PresetKey = '7days' | '30days' | 'month'
@@ -590,34 +591,62 @@ export default function Home() {
     }
   }
 
-  const clearMarketing = async (releaseId: string) => {
+  const toggleShare = async (releaseId: string, currentlyShared: boolean, hasMarketing: boolean) => {
     setGeneratingMarketing(releaseId)
     setError(null)
 
     try {
-      const res = await fetch(`/api/releases/${releaseId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          marketingTitle: '',
-          marketingDescription: '',
-          marketingWhyThisMatters: '',
-        }),
-      })
+      // If no marketing content, generate it first
+      if (!hasMarketing) {
+        const res = await fetch(`/api/releases/${releaseId}/marketing`, {
+          method: 'POST',
+        })
+        if (!res.ok) {
+          const data = await res.json()
+          throw new Error(data.error || 'Failed to generate marketing')
+        }
+        const { marketing } = await res.json()
 
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to clear marketing')
+        // Set shared=true after generating
+        await fetch(`/api/releases/${releaseId}/share`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shared: true }),
+        })
+
+        setReleases(prev => prev.map(r =>
+          r.id === releaseId
+            ? {
+                ...r,
+                marketing_title: marketing.title,
+                marketing_description: marketing.description,
+                marketing_why_this_matters: marketing.whyThisMatters,
+                shared: true,
+              }
+            : r
+        ))
+        setMessage('Share card created')
+      } else {
+        // Toggle shared state
+        const newShared = !currentlyShared
+        const res = await fetch(`/api/releases/${releaseId}/share`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shared: newShared }),
+        })
+
+        if (!res.ok) {
+          const data = await res.json()
+          throw new Error(data.error || 'Failed to toggle share')
+        }
+
+        setReleases(prev => prev.map(r =>
+          r.id === releaseId ? { ...r, shared: newShared } : r
+        ))
+        setMessage(newShared ? 'Share card enabled' : 'Share card disabled')
       }
-
-      setReleases(prev => prev.map(r =>
-        r.id === releaseId
-          ? { ...r, marketing_title: null, marketing_description: null, marketing_why_this_matters: null }
-          : r
-      ))
-      setMessage('Marketing content removed')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to clear marketing')
+      setError(err instanceof Error ? err.message : 'Failed to toggle share')
     } finally {
       setGeneratingMarketing(null)
     }
@@ -1120,24 +1149,21 @@ export default function Home() {
                                         {release.published ? 'Published' : 'Publish'}
                                       </button>
                                       <button
-                                        onClick={() => release.marketing_title
-                                          ? clearMarketing(release.id)
-                                          : generateMarketing(release.id)
-                                        }
+                                        onClick={() => toggleShare(release.id, release.shared, !!release.marketing_title)}
                                         disabled={generatingMarketing !== null}
                                         className={`px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 ${
-                                          release.marketing_title
+                                          release.shared
                                             ? 'bg-pink-500 text-white hover:bg-pink-600'
                                             : 'border border-gray-300 text-gray-600 hover:bg-gray-100'
                                         }`}
                                       >
                                         {generatingMarketing === release.id
                                           ? 'Working...'
-                                          : release.marketing_title
+                                          : release.shared
                                           ? 'Shared'
                                           : 'Share'}
                                       </button>
-                                      {release.marketing_title && (
+                                      {release.shared && (
                                         <a
                                           href={`/release/${release.id}`}
                                           target="_blank"

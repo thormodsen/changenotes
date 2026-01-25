@@ -41,6 +41,7 @@ export interface Release {
   marketing_title: string | null
   marketing_description: string | null
   marketing_why_this_matters: string | null
+  shared: boolean
 }
 
 // Initialize schema
@@ -101,6 +102,19 @@ export async function initializeSchema(): Promise<void> {
         ALTER TABLE releases ADD COLUMN marketing_title TEXT;
         ALTER TABLE releases ADD COLUMN marketing_description TEXT;
         ALTER TABLE releases ADD COLUMN marketing_why_this_matters TEXT;
+      END IF;
+    END $$;
+  `
+
+  // Add shared column if it doesn't exist
+  await sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'releases' AND column_name = 'shared'
+      ) THEN
+        ALTER TABLE releases ADD COLUMN shared BOOLEAN DEFAULT FALSE;
       END IF;
     END $$;
   `
@@ -381,6 +395,16 @@ export async function unpublishReleases(ids: string[]): Promise<number> {
     [ids]
   )
   return result.rowCount ?? 0
+}
+
+export async function setReleaseShared(id: string, shared: boolean): Promise<boolean> {
+  try {
+    await sql`UPDATE releases SET shared = ${shared} WHERE id = ${id}`
+    return true
+  } catch (err) {
+    console.error('Failed to update shared status:', err)
+    return false
+  }
 }
 
 export async function updateRelease(

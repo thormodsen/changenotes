@@ -83,7 +83,7 @@ export default async function ReleaseDetailPage({ params }: PageProps) {
             </div>
           )}
 
-          {release.marketing_title && (
+          {release.shared && (
             <div className="mt-8 pt-6 border-t border-gray-100">
               <Link
                 href={`/release/${release.id}`}
