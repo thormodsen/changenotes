@@ -134,7 +134,7 @@ export default function ChangelogPage() {
                     <article
                       key={release.id}
                       id={`release-${release.id}`}
-                      className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm scroll-mt-6"
+                      className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm scroll-mt-6 hover:border-gray-300 hover:shadow-md transition-all"
                     >
                       <div className="flex items-center gap-3 mb-3">
                         <span
@@ -156,7 +156,9 @@ export default function ChangelogPage() {
                         )}
                       </div>
 
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">{release.title}</h3>
+                      <a href={`/changelog/${release.id}`} className="block group">
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">{release.title}</h3>
+                      </a>
 
                       {release.description && (
                         <p className="text-gray-700 leading-relaxed mb-4">{release.description}</p>
