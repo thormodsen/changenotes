@@ -39,7 +39,7 @@ export default async function ReleaseDetailPage({ params }: PageProps) {
   const { id } = await params
   const release = await getReleaseById(id)
 
-  if (!release) {
+  if (!release || !release.published) {
     notFound()
   }
 
