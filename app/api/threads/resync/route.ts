@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
-import { insertMessage, type SlackMessage } from '@/lib/db/client'
+import { insertMessage, type SlackMessage, type Release } from '@/lib/db/client'
 import { extractReleasesFromMessages } from '@/lib/extraction'
 
 interface SlackApiMessage {
@@ -107,12 +107,32 @@ export async function POST(request: NextRequest) {
       errors.push(...result.errors)
     }
 
+    // Step 5: Fetch the extracted releases to return details
+    const releasesResult = await sql<Release>`
+      SELECT id, title, date, type, description
+      FROM releases
+      WHERE message_id IN (
+        SELECT id FROM slack_messages
+        WHERE thread_ts = ${threadTs} OR id = ${threadTs}
+      )
+      ORDER BY date DESC
+    `
+
+    const releases = releasesResult.rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      date: r.date,
+      type: r.type,
+      description: r.description,
+    }))
+
     return NextResponse.json({
       success: true,
       deleted,
       inserted: newMessages.length,
       extracted,
       promptVersion,
+      releases,
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (err) {
