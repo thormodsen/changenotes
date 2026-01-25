@@ -41,7 +41,7 @@ interface Release {
 }
 
 type PresetKey = '7days' | '30days' | 'month'
-type Tab = 'messages' | 'releases' | 'public'
+type Tab = 'messages' | 'releases'
 
 const emojiMap: Record<string, string> = {
   rocket: '🚀',
@@ -307,7 +307,7 @@ export default function Home() {
   // Restore active tab from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('activeTab')
-    if (saved && (saved === 'messages' || saved === 'releases' || saved === 'public')) {
+    if (saved && (saved === 'messages' || saved === 'releases')) {
       setActiveTab(saved as Tab)
     }
     setIsInitialized(true)
@@ -695,7 +695,7 @@ export default function Home() {
       {/* Tabs */}
       <div className="border-b border-gray-200 mb-6">
         <nav className="flex gap-8">
-          {(['messages', 'releases', 'public'] as const).map((tab) => (
+          {(['messages', 'releases'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -705,9 +705,20 @@ export default function Home() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              {tab === 'messages' ? 'Slack Messages' : tab === 'releases' ? 'Release Notes' : 'Public Changelog'}
+              {tab === 'messages' ? 'Slack Messages' : 'Release Notes'}
             </button>
           ))}
+          <a
+            href="/changelog"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pb-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors inline-flex items-center gap-1"
+          >
+            Public Changelog
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
         </nav>
       </div>
 
@@ -1211,31 +1222,6 @@ export default function Home() {
             </div>
           )}
 
-          {activeTab === 'public' && (
-            <div className="bg-white rounded-xl border border-gray-200 min-h-[500px]">
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-medium text-gray-900">Public Changelog Preview</h2>
-                  <a
-                    href="/changelog"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                  >
-                    Open in New Tab
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
-                </div>
-                <iframe
-                  src="/changelog"
-                  className="w-full h-[600px] border border-gray-200 rounded-lg"
-                  title="Public Changelog Preview"
-                />
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
