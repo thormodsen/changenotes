@@ -214,7 +214,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
             href={`/changelog/${releaseNote.id}`}
             className="bg-white rounded-full px-8 py-4 shadow-lg hover:shadow-xl transition-shadow"
           >
-            <p className="text-[#4A7CFF] font-bold">Available Now</p>
+            <p className="text-[#4A7CFF] font-bold">Learn more</p>
           </a>
         </motion.div>
       </div>
