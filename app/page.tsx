@@ -235,6 +235,7 @@ export default function Home() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Release>>({})
   const [generatingMarketing, setGeneratingMarketing] = useState<string | null>(null)
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -322,6 +323,14 @@ export default function Home() {
 
     localStorage.setItem('activeTab', activeTab)
   }, [activeTab, isInitialized, fetchMessages, fetchReleases])
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!menuOpenId) return
+    const handleClick = () => setMenuOpenId(null)
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
+  }, [menuOpenId])
 
 
   const applyPreset = (preset: PresetKey) => {
@@ -1219,29 +1228,49 @@ export default function Home() {
                                           View card
                                         </a>
                                       )}
-                                      {release.marketing_title && (
-                                        <button
-                                          onClick={() => regenerateMarketing(release.id)}
-                                          disabled={generatingMarketing !== null}
-                                          className="px-3 py-1 border border-orange-300 text-orange-600 rounded text-xs font-medium hover:bg-orange-50 disabled:opacity-50"
-                                          title="Regenerate marketing copy"
-                                        >
-                                          ↻ Regen
-                                        </button>
-                                      )}
                                       <button
                                         onClick={() => startEdit(release)}
                                         className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
                                       >
                                         Edit
                                       </button>
-                                      <button
-                                        onClick={() => reextractMessage(release.message_id)}
-                                        disabled={loading !== null}
-                                        className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium hover:bg-purple-200 disabled:opacity-50"
-                                      >
-                                        Re-extract
-                                      </button>
+                                      <div className="relative">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setMenuOpenId(menuOpenId === release.id ? null : release.id)
+                                          }}
+                                          className="px-3 py-1 border border-gray-300 text-gray-600 rounded text-xs font-medium hover:bg-gray-100"
+                                        >
+                                          ⋯
+                                        </button>
+                                        {menuOpenId === release.id && (
+                                          <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[160px]">
+                                            {release.marketing_title && (
+                                              <button
+                                                onClick={() => {
+                                                  setMenuOpenId(null)
+                                                  regenerateMarketing(release.id)
+                                                }}
+                                                disabled={generatingMarketing !== null}
+                                                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                                              >
+                                                ↻ Regenerate marketing
+                                              </button>
+                                            )}
+                                            <button
+                                              onClick={() => {
+                                                setMenuOpenId(null)
+                                                reextractMessage(release.message_id)
+                                              }}
+                                              disabled={loading !== null}
+                                              className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                            >
+                                              ⚠️ Re-extract from Slack
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                   )}
                                 </div>
