@@ -23,15 +23,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const description = release.marketing_description || release.description || ''
 
   return {
-    title: `${title} | Changelog`,
+    title,
     description,
     openGraph: {
       title,
       description,
       type: 'article',
+      url: `/release/${id}`,
     },
     twitter: {
-      card: 'summary_large_image',
+      card: 'summary',
       title,
       description,
     },

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://changenotes.vercel.app'),
   title: 'Changelog Viewer',
   description: 'Generate and view changelog entries for any date range',
 }
