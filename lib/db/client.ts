@@ -8,6 +8,7 @@ export interface SlackMessage {
   timestamp: Date
   user_id: string | null
   username: string | null
+  thread_ts: string | null
   thread_replies: ThreadReply[] | null
   raw_json: Record<string, unknown> | null
   fetched_at: Date
@@ -119,10 +120,77 @@ export async function initializeSchema(): Promise<void> {
     END $$;
   `
 
+  // Add thread_ts column for easier thread linking
+  await sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'slack_messages' AND column_name = 'thread_ts'
+      ) THEN
+        ALTER TABLE slack_messages ADD COLUMN thread_ts TEXT;
+      END IF;
+    END $$;
+  `
+
+  // Backfill thread_ts from raw_json
+  await sql`
+    UPDATE slack_messages
+    SET thread_ts = raw_json->>'thread_ts'
+    WHERE thread_ts IS NULL AND raw_json->>'thread_ts' IS NOT NULL
+  `
+
+  // Add search_vector column for full-text search
+  await sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'releases' AND column_name = 'search_vector'
+      ) THEN
+        ALTER TABLE releases ADD COLUMN search_vector tsvector;
+      END IF;
+    END $$;
+  `
+
+  // Populate search_vector for existing releases
+  await sql`
+    UPDATE releases
+    SET search_vector = to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, ''))
+    WHERE search_vector IS NULL
+  `
+
+  // Create or replace trigger function to auto-update search_vector
+  await sql`
+    CREATE OR REPLACE FUNCTION releases_search_vector_trigger() RETURNS trigger AS $$
+    BEGIN
+      NEW.search_vector := to_tsvector('english', coalesce(NEW.title, '') || ' ' || coalesce(NEW.description, ''));
+      RETURN NEW;
+    END
+    $$ LANGUAGE plpgsql;
+  `
+
+  // Create trigger if not exists
+  await sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'releases_search_vector_update'
+      ) THEN
+        CREATE TRIGGER releases_search_vector_update
+        BEFORE INSERT OR UPDATE ON releases
+        FOR EACH ROW EXECUTE FUNCTION releases_search_vector_trigger();
+      END IF;
+    END $$;
+  `
+
   // Create indexes (these are idempotent)
   await sql`CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON slack_messages(timestamp DESC)`
   await sql`CREATE INDEX IF NOT EXISTS idx_releases_message ON releases(message_id)`
   await sql`CREATE INDEX IF NOT EXISTS idx_releases_date ON releases(date DESC)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_releases_published ON releases(published)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_releases_search ON releases USING GIN(search_vector)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_messages_thread_ts ON slack_messages(thread_ts)`
 }
 
 // Messages
@@ -133,12 +201,16 @@ export async function insertMessage(msg: {
   timestamp: Date
   userId?: string
   username?: string
+  threadTs?: string
   threadReplies?: ThreadReply[]
   rawJson?: Record<string, unknown>
 }): Promise<boolean> {
   try {
+    // Extract thread_ts from rawJson if not provided directly
+    const threadTs = msg.threadTs ?? (msg.rawJson?.thread_ts as string | undefined) ?? null
+
     await sql`
-      INSERT INTO slack_messages (id, channel_id, text, timestamp, user_id, username, thread_replies, raw_json)
+      INSERT INTO slack_messages (id, channel_id, text, timestamp, user_id, username, thread_ts, thread_replies, raw_json)
       VALUES (
         ${msg.id},
         ${msg.channelId},
@@ -146,6 +218,7 @@ export async function insertMessage(msg: {
         ${msg.timestamp.toISOString()},
         ${msg.userId ?? null},
         ${msg.username ?? null},
+        ${threadTs},
         ${msg.threadReplies ? JSON.stringify(msg.threadReplies) : null},
         ${msg.rawJson ? JSON.stringify(msg.rawJson) : null}
       )
@@ -516,4 +589,111 @@ export async function getStats(): Promise<{
     publishedReleases: parseInt(published.rows[0].count),
     messagesWithoutReleases: parseInt(unprocessed.rows[0].count),
   }
+}
+
+// Related releases
+
+export interface RelatedRelease {
+  id: string
+  title: string
+  type: string
+  date: string
+  description: string | null
+}
+
+/**
+ * Find the parent release via Slack thread_ts.
+ * If this release's source message is a thread reply, returns the release
+ * that was extracted from the parent message.
+ */
+export async function getParentRelease(releaseId: string): Promise<RelatedRelease | null> {
+  const result = await sql<RelatedRelease>`
+    SELECT r.id, r.title, r.type, r.date, r.description
+    FROM releases r
+    INNER JOIN slack_messages parent_msg ON r.message_id = parent_msg.id
+    WHERE parent_msg.id = (
+      SELECT m.thread_ts
+      FROM releases rel
+      INNER JOIN slack_messages m ON rel.message_id = m.id
+      WHERE rel.id = ${releaseId}
+      AND m.thread_ts IS NOT NULL
+      AND m.thread_ts != m.id
+    )
+    AND r.published = true
+    LIMIT 1
+  `
+  return result.rows[0] || null
+}
+
+/**
+ * Find sibling releases (other releases in the same thread).
+ */
+export async function getSiblingReleases(releaseId: string): Promise<RelatedRelease[]> {
+  const result = await sql<RelatedRelease>`
+    SELECT DISTINCT r.id, r.title, r.type, r.date, r.description
+    FROM releases r
+    INNER JOIN slack_messages m ON r.message_id = m.id
+    WHERE m.thread_ts = (
+      SELECT COALESCE(msg.thread_ts, msg.id)
+      FROM releases rel
+      INNER JOIN slack_messages msg ON rel.message_id = msg.id
+      WHERE rel.id = ${releaseId}
+    )
+    AND r.id != ${releaseId}
+    AND r.published = true
+    ORDER BY r.date DESC
+    LIMIT 10
+  `
+  return result.rows
+}
+
+/**
+ * Find related releases via full-text search on title and description.
+ * Uses PostgreSQL's built-in text search with stemming.
+ */
+export async function getRelatedReleases(
+  releaseId: string,
+  limit = 5
+): Promise<RelatedRelease[]> {
+  const result = await sql<RelatedRelease>`
+    WITH current_release AS (
+      SELECT title, description, search_vector
+      FROM releases
+      WHERE id = ${releaseId}
+    )
+    SELECT r.id, r.title, r.type, r.date, r.description,
+           ts_rank(r.search_vector, plainto_tsquery('english', cr.title)) as rank
+    FROM releases r, current_release cr
+    WHERE r.id != ${releaseId}
+    AND r.published = true
+    AND r.search_vector @@ plainto_tsquery('english', cr.title)
+    ORDER BY rank DESC
+    LIMIT ${limit}
+  `
+  return result.rows
+}
+
+/**
+ * Get all linked releases for a given release:
+ * - Parent release (if this is a thread reply)
+ * - Sibling releases (other releases in same thread)
+ * - Related releases (via keyword matching)
+ */
+export async function getLinkedReleases(releaseId: string): Promise<{
+  parent: RelatedRelease | null
+  siblings: RelatedRelease[]
+  related: RelatedRelease[]
+}> {
+  const [parent, siblings, related] = await Promise.all([
+    getParentRelease(releaseId),
+    getSiblingReleases(releaseId),
+    getRelatedReleases(releaseId),
+  ])
+
+  // Filter out siblings from related to avoid duplicates
+  const siblingIds = new Set(siblings.map(s => s.id))
+  if (parent) siblingIds.add(parent.id)
+  const filteredRelated = related.filter(r => !siblingIds.has(r.id))
+
+  return { parent, siblings, related: filteredRelated }
 }

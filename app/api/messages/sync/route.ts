@@ -136,6 +136,7 @@ export async function POST(request: NextRequest) {
             timestamp,
             user_id: msg.user || null,
             username: msg.username || null,
+            thread_ts: msg.thread_ts || null,
             thread_replies: threadReplies || null,
             raw_json: (msg as unknown as Record<string, unknown>) || null,
             fetched_at: new Date(),

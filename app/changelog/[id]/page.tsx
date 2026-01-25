@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { unstable_noStore as noStore } from 'next/cache'
 import Link from 'next/link'
-import { getReleaseById } from '@/lib/db/client'
+import { getReleaseById, getLinkedReleases, type RelatedRelease } from '@/lib/db/client'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -25,6 +25,19 @@ function formatDate(date: string | Date): string {
   })
 }
 
+function formatShortDate(date: string | Date): string {
+  const dateObj = date instanceof Date
+    ? date
+    : new Date(typeof date === 'string' && !date.includes('T') ? date + 'T00:00:00' : date)
+
+  if (isNaN(dateObj.getTime())) return ''
+
+  return dateObj.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+  })
+}
+
 const typeColors: Record<string, string> = {
   'New Feature': 'bg-lime-100 text-lime-800',
   Improvement: 'bg-blue-100 text-blue-800',
@@ -34,14 +47,41 @@ const typeColors: Record<string, string> = {
   Update: 'bg-gray-100 text-gray-800',
 }
 
+function RelatedReleaseCard({ release }: { release: RelatedRelease }) {
+  return (
+    <Link
+      href={`/changelog/${release.id}`}
+      className="block p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-100 transition-all"
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <span
+          className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+            typeColors[release.type] || 'bg-gray-100 text-gray-800'
+          }`}
+        >
+          {release.type}
+        </span>
+        <span className="text-xs text-gray-500">{formatShortDate(release.date)}</span>
+      </div>
+      <h4 className="font-medium text-gray-900 text-sm">{release.title}</h4>
+    </Link>
+  )
+}
+
 export default async function ReleaseDetailPage({ params }: PageProps) {
   noStore()
   const { id } = await params
-  const release = await getReleaseById(id)
+
+  const [release, linked] = await Promise.all([
+    getReleaseById(id),
+    getLinkedReleases(id),
+  ])
 
   if (!release || !release.published) {
     notFound()
   }
+
+  const hasLinkedReleases = linked.parent || linked.siblings.length > 0 || linked.related.length > 0
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -55,6 +95,19 @@ export default async function ReleaseDetailPage({ params }: PageProps) {
           </svg>
           See all changes
         </Link>
+
+        {/* Parent release banner */}
+        {linked.parent && (
+          <div className="mb-6 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+            <p className="text-sm text-indigo-700 mb-2">This is a rollout update for:</p>
+            <Link
+              href={`/changelog/${linked.parent.id}`}
+              className="font-semibold text-indigo-900 hover:text-indigo-700 transition-colors"
+            >
+              {linked.parent.title} →
+            </Link>
+          </div>
+        )}
 
         <article className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
@@ -102,6 +155,35 @@ export default async function ReleaseDetailPage({ params }: PageProps) {
             </div>
           )}
         </article>
+
+        {/* Linked releases section */}
+        {hasLinkedReleases && (
+          <div className="mt-8">
+            {/* Siblings (rollout updates in same thread) */}
+            {linked.siblings.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Rollout updates</h3>
+                <div className="grid gap-3">
+                  {linked.siblings.map((sibling) => (
+                    <RelatedReleaseCard key={sibling.id} release={sibling} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Related releases (keyword match) */}
+            {linked.related.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Related releases</h3>
+                <div className="grid gap-3">
+                  {linked.related.map((related) => (
+                    <RelatedReleaseCard key={related.id} release={related} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </main>
   )
