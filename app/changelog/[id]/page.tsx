@@ -64,6 +64,9 @@ function RelatedReleaseCard({ release }: { release: RelatedRelease }) {
         <span className="text-xs text-gray-500">{formatShortDate(release.date)}</span>
       </div>
       <h4 className="font-medium text-gray-900 text-sm">{release.title}</h4>
+      {release.description && (
+        <p className="text-sm text-gray-600 mt-1">{release.description}</p>
+      )}
     </Link>
   )
 }
