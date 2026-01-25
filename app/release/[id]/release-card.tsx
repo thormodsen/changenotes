@@ -44,8 +44,12 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
 
   return (
     <div
-      className="relative w-full max-w-md mx-auto bg-[#4A7CFF] rounded-3xl overflow-hidden shadow-2xl"
-      style={{ aspectRatio: '9/16', minHeight: '600px' }}
+      className="relative mx-auto bg-[#4A7CFF] rounded-3xl overflow-hidden shadow-2xl"
+      style={{
+        aspectRatio: '9/16',
+        width: 'min(100%, 448px, calc(85vh * 9 / 16))',
+        maxHeight: '85vh'
+      }}
     >
       {/* Decorative background elements */}
       <div className="absolute inset-0 overflow-hidden">
