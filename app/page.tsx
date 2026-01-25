@@ -590,6 +590,39 @@ export default function Home() {
     }
   }
 
+  const clearMarketing = async (releaseId: string) => {
+    setGeneratingMarketing(releaseId)
+    setError(null)
+
+    try {
+      const res = await fetch(`/api/releases/${releaseId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          marketingTitle: '',
+          marketingDescription: '',
+          marketingWhyThisMatters: '',
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to clear marketing')
+      }
+
+      setReleases(prev => prev.map(r =>
+        r.id === releaseId
+          ? { ...r, marketing_title: null, marketing_description: null, marketing_why_this_matters: null }
+          : r
+      ))
+      setMessage('Marketing content removed')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to clear marketing')
+    } finally {
+      setGeneratingMarketing(null)
+    }
+  }
+
   const typeColors: Record<string, string> = {
     'New Feature': 'bg-lime-100 text-lime-800',
     Improvement: 'bg-blue-100 text-blue-800',
@@ -1080,20 +1113,40 @@ export default function Home() {
                                         onClick={() => togglePublish(release.id, release.published)}
                                         className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
                                           release.published
-                                            ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                            : 'bg-green-500 text-white hover:bg-green-600'
+                                            ? 'bg-green-500 text-white hover:bg-green-600'
+                                            : 'border border-gray-300 text-gray-600 hover:bg-gray-100'
                                         }`}
                                       >
-                                        {release.published ? 'Unpublish' : 'Publish'}
+                                        {release.published ? 'Published' : 'Publish'}
                                       </button>
-                                      <a
-                                        href={`/release/${release.id}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="px-3 py-1 bg-pink-100 text-pink-700 rounded text-xs font-medium hover:bg-pink-200 text-center"
+                                      <button
+                                        onClick={() => release.marketing_title
+                                          ? clearMarketing(release.id)
+                                          : generateMarketing(release.id)
+                                        }
+                                        disabled={generatingMarketing !== null}
+                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 ${
+                                          release.marketing_title
+                                            ? 'bg-pink-500 text-white hover:bg-pink-600'
+                                            : 'border border-gray-300 text-gray-600 hover:bg-gray-100'
+                                        }`}
                                       >
-                                        Share
-                                      </a>
+                                        {generatingMarketing === release.id
+                                          ? 'Working...'
+                                          : release.marketing_title
+                                          ? 'Shared'
+                                          : 'Share'}
+                                      </button>
+                                      {release.marketing_title && (
+                                        <a
+                                          href={`/release/${release.id}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="px-3 py-1 border border-pink-300 text-pink-600 rounded text-xs font-medium hover:bg-pink-50 text-center"
+                                        >
+                                          View card
+                                        </a>
+                                      )}
                                       <button
                                         onClick={() => startEdit(release)}
                                         className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
@@ -1106,21 +1159,6 @@ export default function Home() {
                                         className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium hover:bg-purple-200 disabled:opacity-50"
                                       >
                                         Re-extract
-                                      </button>
-                                      <button
-                                        onClick={() => generateMarketing(release.id)}
-                                        disabled={generatingMarketing !== null}
-                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 ${
-                                          release.marketing_title
-                                            ? 'bg-teal-100 text-teal-700 hover:bg-teal-200'
-                                            : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                                        }`}
-                                      >
-                                        {generatingMarketing === release.id
-                                          ? 'Generating...'
-                                          : release.marketing_title
-                                          ? 'Regenerate'
-                                          : 'Marketing'}
                                       </button>
                                     </div>
                                   )}
