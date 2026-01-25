@@ -63,13 +63,19 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
 
   return (
     <div
-      className="relative bg-[#4A7CFF] rounded-3xl overflow-hidden shadow-2xl origin-center"
       style={{
-        width: CARD_WIDTH,
-        height: CARD_HEIGHT,
-        transform: `scale(${scale})`,
+        width: CARD_WIDTH * scale,
+        height: CARD_HEIGHT * scale,
       }}
     >
+      <div
+        className="relative bg-[#4A7CFF] rounded-3xl overflow-hidden shadow-2xl origin-top-left"
+        style={{
+          width: CARD_WIDTH,
+          height: CARD_HEIGHT,
+          transform: `scale(${scale})`,
+        }}
+      >
       {/* Decorative background elements */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.svg
@@ -211,6 +217,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
             <p className="text-[#4A7CFF] font-bold">Available Now</p>
           </a>
         </motion.div>
+      </div>
       </div>
     </div>
   )
