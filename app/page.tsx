@@ -945,11 +945,11 @@ export default function Home() {
                         <div key={date}>
                           <h3 className="text-sm font-medium text-gray-500 mb-3">
                             {isValidDate
-                              ? dateObj.toLocaleDateString('en-GB', {
+                              ? dateObj.toLocaleDateString('en-US', {
                                   weekday: 'long',
-                                  day: 'numeric',
-                                  month: 'long',
                                   year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric',
                                 })
                               : date}
                           </h3>
