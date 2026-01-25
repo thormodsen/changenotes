@@ -107,7 +107,8 @@ function parseClassificationResponse(textContent: string): string[] {
  */
 async function classifyMessages(
   messages: SlackMessage[],
-  config: { openRouterApiKey: string }
+  config: { openRouterApiKey: string },
+  classificationPrompt: string
 ): Promise<Set<string>> {
   if (messages.length === 0) return new Set()
 
@@ -124,23 +125,7 @@ async function classifyMessages(
     })
     .join('\n\n')
 
-  const classificationPrompt = `You are analyzing Slack messages to identify which ones are release announcements, feature updates, or rollout notifications.
-
-Messages that ARE releases:
-- Feature announcements ("We released X", "Now available", "Introducing")
-- Rollout updates ("Rolling out to Spain", "Now live in UK")
-- Version updates ("v1.2 released", "Updated to include")
-- Bug fix announcements
-
-Messages that are NOT releases:
-- Questions ("Any plans for...?", "Could you share...?")
-- Congratulations or reactions ("Great work!", "Congrats!")
-- Follow-up questions or clarifications
-- Simple acknowledgments ("Thanks", "Got it", "ah I see")
-- Requests for information
-
-Return ONLY a JSON array of message IDs that are release announcements.
-Example: ["1234567890.123456", "1234567890.789012"]
+  const fullPrompt = `${classificationPrompt}
 
 Messages to analyze:
 
@@ -158,7 +143,7 @@ ${messagesText}`
       body: JSON.stringify({
         model: 'anthropic/claude-sonnet-4',
         max_tokens: 1024,
-        messages: [{ role: 'user', content: classificationPrompt }],
+        messages: [{ role: 'user', content: fullPrompt }],
       }),
     })
 
@@ -214,20 +199,28 @@ export async function extractReleasesFromMessages(
     throw new Error('Langfuse configuration is required')
   }
 
-  const langfuseResult = await fetchLangfusePrompt(
-    {
-      secretKey: config.langfuseSecretKey,
-      publicKey: config.langfusePublicKey,
-      baseUrl: config.langfuseBaseUrl,
-    },
-    'release-extraction'
-  )
+  const langfuseConfig = {
+    secretKey: config.langfuseSecretKey,
+    publicKey: config.langfusePublicKey,
+    baseUrl: config.langfuseBaseUrl,
+  }
 
-  if (!langfuseResult) {
+  // Fetch both prompts from Langfuse
+  const [extractionResult, classificationResult] = await Promise.all([
+    fetchLangfusePrompt(langfuseConfig, 'release-extraction'),
+    fetchLangfusePrompt(langfuseConfig, 'release-classification'),
+  ])
+
+  if (!extractionResult) {
     throw new Error('Langfuse prompt "release-extraction" not found')
   }
 
-  const { prompt, version: promptVersion } = langfuseResult
+  if (!classificationResult) {
+    throw new Error('Langfuse prompt "release-classification" not found')
+  }
+
+  const { prompt, version: promptVersion } = extractionResult
+  const { prompt: classificationPrompt } = classificationResult
 
   let totalExtracted = 0
   const errors: string[] = []
@@ -237,9 +230,11 @@ export async function extractReleasesFromMessages(
 
   for (const [threadId, threadMessages] of Array.from(threadGroups.entries())) {
     // Pass 1: Classify which messages are release-worthy
-    const releaseIds = await classifyMessages(threadMessages, {
-      openRouterApiKey: config.openRouterApiKey,
-    })
+    const releaseIds = await classifyMessages(
+      threadMessages,
+      { openRouterApiKey: config.openRouterApiKey },
+      classificationPrompt
+    )
 
     console.log(
       `Thread ${threadId}: ${releaseIds.size}/${threadMessages.length} messages identified as releases`
