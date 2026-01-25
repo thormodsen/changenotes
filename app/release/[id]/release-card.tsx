@@ -34,7 +34,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
 
   useEffect(() => {
     const updateScale = () => {
-      const vh = window.innerHeight * 0.85
+      const vh = window.innerHeight * 0.95
       const vw = window.innerWidth * 0.95
       const scaleByHeight = vh / CARD_HEIGHT
       const scaleByWidth = vw / CARD_WIDTH
