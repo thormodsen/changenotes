@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation'
+import { unstable_noStore as noStore } from 'next/cache'
 import Link from 'next/link'
 import { getReleaseById } from '@/lib/db/client'
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -33,6 +35,7 @@ const typeColors: Record<string, string> = {
 }
 
 export default async function ReleaseDetailPage({ params }: PageProps) {
+  noStore()
   const { id } = await params
   const release = await getReleaseById(id)
 
