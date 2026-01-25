@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getReleaseById, updateReleaseMarketing } from '@/lib/db/client'
+import { getReleaseById, updateReleaseMarketing, getLinkedReleases } from '@/lib/db/client'
 
 interface MarketingContent {
   title: string
@@ -109,6 +109,38 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const { prompt } = langfuseResult
 
+    // Fetch thread context if this release is part of a thread
+    const linked = await getLinkedReleases(id)
+
+    let threadContext = ''
+    if (linked.parent || linked.siblings.length > 0) {
+      const contextParts: string[] = []
+
+      if (linked.parent) {
+        contextParts.push(`PARENT RELEASE (main feature):
+Title: ${linked.parent.title}
+Type: ${linked.parent.type}
+Description: ${linked.parent.description || 'N/A'}`)
+      }
+
+      if (linked.siblings.length > 0) {
+        const siblingsText = linked.siblings
+          .map(s => `- ${s.title} (${s.type}): ${s.description || 'N/A'}`)
+          .join('\n')
+        contextParts.push(`OTHER UPDATES IN THIS THREAD:\n${siblingsText}`)
+      }
+
+      threadContext = `
+## Thread Context
+This release is part of a feature rollout. Here's the context:
+
+${contextParts.join('\n\n')}
+
+---
+
+`
+    }
+
     const releaseContent = `
 Title: ${release.title}
 Type: ${release.type}
@@ -116,7 +148,7 @@ Description: ${release.description || 'N/A'}
 Why This Matters: ${release.why_this_matters || 'N/A'}
 `.trim()
 
-    const userContent = `${prompt}\n\nRelease note to transform:\n\n${releaseContent}`
+    const userContent = `${prompt}\n\n${threadContext}Release note to transform:\n\n${releaseContent}`
 
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
