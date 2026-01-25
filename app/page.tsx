@@ -591,6 +591,41 @@ export default function Home() {
     }
   }
 
+  const regenerateMarketing = async (releaseId: string) => {
+    setGeneratingMarketing(releaseId)
+    setError(null)
+    setMessage(null)
+
+    try {
+      const res = await fetch(`/api/releases/${releaseId}/marketing`, {
+        method: 'POST',
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to regenerate marketing')
+      }
+
+      const { marketing } = await res.json()
+
+      setReleases(prev => prev.map(r =>
+        r.id === releaseId
+          ? {
+              ...r,
+              marketing_title: marketing.title,
+              marketing_description: marketing.description,
+              marketing_why_this_matters: marketing.whyThisMatters,
+            }
+          : r
+      ))
+      setMessage('Marketing content regenerated')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Marketing regeneration failed')
+    } finally {
+      setGeneratingMarketing(null)
+    }
+  }
+
   const toggleShare = async (releaseId: string, currentlyShared: boolean, hasMarketing: boolean) => {
     setGeneratingMarketing(releaseId)
     setError(null)
@@ -1183,6 +1218,16 @@ export default function Home() {
                                         >
                                           View card
                                         </a>
+                                      )}
+                                      {release.marketing_title && (
+                                        <button
+                                          onClick={() => regenerateMarketing(release.id)}
+                                          disabled={generatingMarketing !== null}
+                                          className="px-3 py-1 border border-orange-300 text-orange-600 rounded text-xs font-medium hover:bg-orange-50 disabled:opacity-50"
+                                          title="Regenerate marketing copy"
+                                        >
+                                          ↻ Regen
+                                        </button>
                                       )}
                                       <button
                                         onClick={() => startEdit(release)}
