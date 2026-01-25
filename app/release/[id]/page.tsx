@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation'
 import { getReleaseById } from '@/lib/db/client'
 import { ReleaseCard } from './release-card'
 
+export const dynamic = 'force-dynamic'
+
 interface PageProps {
   params: Promise<{ id: string }>
 }
