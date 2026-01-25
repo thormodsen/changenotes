@@ -49,25 +49,26 @@ const typeColors: Record<string, string> = {
 
 function RelatedReleaseCard({ release }: { release: RelatedRelease }) {
   return (
-    <Link
-      href={`/changelog/${release.id}`}
-      className="block p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-100 transition-all"
-    >
-      <div className="flex items-center gap-2 mb-2">
+    <article className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:border-gray-300 hover:shadow-md transition-all">
+      <div className="flex items-center gap-3 mb-3">
         <span
-          className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+          className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
             typeColors[release.type] || 'bg-gray-100 text-gray-800'
           }`}
         >
           {release.type}
         </span>
-        <span className="text-xs text-gray-500">{formatShortDate(release.date)}</span>
+        <span className="text-sm text-gray-500">{formatShortDate(release.date)}</span>
       </div>
-      <h4 className="font-medium text-gray-900 text-sm">{release.title}</h4>
+      <Link href={`/changelog/${release.id}`} className="block group">
+        <h3 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+          {release.title}
+        </h3>
+      </Link>
       {release.description && (
-        <p className="text-sm text-gray-600 mt-1">{release.description}</p>
+        <p className="text-gray-700 leading-relaxed">{release.description}</p>
       )}
-    </Link>
+    </article>
   )
 }
 
