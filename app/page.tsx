@@ -977,10 +977,10 @@ export default function Home() {
                                       </span>
                                       {release.message_timestamp && (
                                         <span className="text-xs text-gray-500">
-                                          {new Date(release.message_timestamp).toLocaleString('en-US', {
-                                            year: 'numeric',
-                                            month: '2-digit',
+                                          {new Date(release.message_timestamp).toLocaleString('en-GB', {
                                             day: '2-digit',
+                                            month: '2-digit',
+                                            year: 'numeric',
                                             hour: '2-digit',
                                             minute: '2-digit',
                                           })}
