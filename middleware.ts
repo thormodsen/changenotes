@@ -8,6 +8,7 @@ const publicRoutes = [
   '/release',
   '/changelog',
   '/api/auth',
+  '/api/init',
 ]
 
 function isPublicRoute(pathname: string): boolean {
