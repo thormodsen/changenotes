@@ -182,7 +182,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
           className="flex items-center justify-center pt-6"
         >
           <a
-            href={`/changelog#release-${releaseNote.id}`}
+            href={`/changelog/${releaseNote.id}`}
             className="bg-white rounded-full px-8 py-4 shadow-lg hover:shadow-xl transition-shadow"
           >
             <p className="text-[#4A7CFF] font-bold">Available Now</p>
