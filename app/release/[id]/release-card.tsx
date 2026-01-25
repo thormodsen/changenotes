@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Sparkles, Star, CheckCircle, Zap, Rocket, PartyPopper } from 'lucide-react'
 import { motion } from 'framer-motion'
 
@@ -25,7 +26,25 @@ const typeConfig: Record<string, { icon: typeof Sparkles; label: string; color: 
   'Rollback': { icon: PartyPopper, label: 'ROLLBACK', color: '#FF6B9D' },
 }
 
+const CARD_WIDTH = 448
+const CARD_HEIGHT = CARD_WIDTH * 16 / 9 // ~796px
+
 export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
+  const [scale, setScale] = useState(1)
+
+  useEffect(() => {
+    const updateScale = () => {
+      const vh = window.innerHeight * 0.85
+      const vw = window.innerWidth * 0.95
+      const scaleByHeight = vh / CARD_HEIGHT
+      const scaleByWidth = vw / CARD_WIDTH
+      setScale(Math.min(1, scaleByHeight, scaleByWidth))
+    }
+    updateScale()
+    window.addEventListener('resize', updateScale)
+    return () => window.removeEventListener('resize', updateScale)
+  }, [])
+
   const config = typeConfig[releaseNote.type] || typeConfig['Update']
   const Icon = config.icon
 
@@ -44,11 +63,11 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
 
   return (
     <div
-      className="relative mx-auto bg-[#4A7CFF] rounded-3xl overflow-hidden shadow-2xl"
+      className="relative bg-[#4A7CFF] rounded-3xl overflow-hidden shadow-2xl origin-center"
       style={{
-        aspectRatio: '9/16',
-        width: 'min(100%, 448px, calc(85vh * 9 / 16))',
-        maxHeight: '85vh'
+        width: CARD_WIDTH,
+        height: CARD_HEIGHT,
+        transform: `scale(${scale})`,
       }}
     >
       {/* Decorative background elements */}
