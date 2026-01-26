@@ -122,47 +122,33 @@ function formatMessageSimple(msg: SlackMessage): string {
   return `[${msg.id}] [${date}] ${msg.text}`
 }
 
-function parseReleasesFromResponse(textContent: string): ExtractedRelease[] {
-  let jsonText = textContent.trim()
-
-  if (jsonText.startsWith('```')) {
-    const lines = jsonText.split('\n')
+function stripMarkdownCodeBlock(text: string): string {
+  let result = text.trim()
+  if (result.startsWith('```')) {
+    const lines = result.split('\n')
     lines.shift()
     if (lines[lines.length - 1]?.trim() === '```') lines.pop()
-    jsonText = lines.join('\n').trim()
+    result = lines.join('\n').trim()
   }
-
-  try {
-    const releases = JSON.parse(jsonText) as ExtractedRelease[]
-    return Array.isArray(releases) ? releases : []
-  } catch {
-    try {
-      const fixed = jsonText.replace(/,(\s*[}\]])/g, '$1')
-      const releases = JSON.parse(fixed) as ExtractedRelease[]
-      return Array.isArray(releases) ? releases : []
-    } catch {
-      console.error('Failed to parse releases JSON:', jsonText.substring(0, 200))
-      return []
-    }
-  }
+  return result
 }
 
-function parseClassificationResponse(textContent: string): string[] {
-  let jsonText = textContent.trim()
-
-  if (jsonText.startsWith('```')) {
-    const lines = jsonText.split('\n')
-    lines.shift()
-    if (lines[lines.length - 1]?.trim() === '```') lines.pop()
-    jsonText = lines.join('\n').trim()
-  }
+function parseJsonArray<T>(textContent: string, context: string): T[] {
+  const jsonText = stripMarkdownCodeBlock(textContent)
 
   try {
-    const ids = JSON.parse(jsonText) as string[]
-    return Array.isArray(ids) ? ids : []
+    const parsed = JSON.parse(jsonText) as T[]
+    return Array.isArray(parsed) ? parsed : []
   } catch {
-    console.error('Failed to parse classification JSON:', jsonText.substring(0, 200))
-    return []
+    // Try fixing trailing commas (common LLM output issue)
+    try {
+      const fixed = jsonText.replace(/,(\s*[}\]])/g, '$1')
+      const parsed = JSON.parse(fixed) as T[]
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      console.error(`Failed to parse ${context} JSON:`, jsonText.substring(0, 200))
+      return []
+    }
   }
 }
 
@@ -224,7 +210,7 @@ ${messagesText}`
       return new Set(messages.map((m) => m.id))
     }
 
-    const releaseIds = parseClassificationResponse(textContent)
+    const releaseIds = parseJsonArray<string>(textContent, 'classification')
     return new Set(releaseIds)
   } catch (err) {
     console.error('Classification error:', err)
@@ -350,7 +336,7 @@ export async function extractReleasesFromMessages(
           continue
         }
 
-        const releases = parseReleasesFromResponse(textContent)
+        const releases = parseJsonArray<ExtractedRelease>(textContent, 'releases')
 
         // Use the Slack message timestamp as the release date
         const messageDate = msg.timestamp.toISOString().split('T')[0]
