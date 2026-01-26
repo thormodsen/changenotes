@@ -23,6 +23,29 @@ export interface ThreadReply {
   username?: string
 }
 
+export interface MediaImage {
+  id: string
+  url: string
+  thumb_url?: string
+  width?: number
+  height?: number
+  name?: string
+}
+
+export interface MediaVideo {
+  id: string
+  url: string
+  mp4_url?: string
+  thumb_url?: string
+  duration_ms?: number
+  name?: string
+}
+
+export interface ReleaseMedia {
+  images: MediaImage[]
+  videos: MediaVideo[]
+}
+
 export interface Release {
   id: string
   message_id: string
@@ -43,6 +66,10 @@ export interface Release {
   marketing_description: string | null
   marketing_why_this_matters: string | null
   shared: boolean
+  // Media attachments from Slack
+  media: ReleaseMedia | null
+  include_media: boolean
+  featured_image_url: string | null
 }
 
 // Initialize schema
@@ -116,6 +143,32 @@ export async function initializeSchema(): Promise<void> {
         WHERE table_name = 'releases' AND column_name = 'shared'
       ) THEN
         ALTER TABLE releases ADD COLUMN shared BOOLEAN DEFAULT FALSE;
+      END IF;
+    END $$;
+  `
+
+  // Add media column if it doesn't exist
+  await sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'releases' AND column_name = 'media'
+      ) THEN
+        ALTER TABLE releases ADD COLUMN media JSONB;
+      END IF;
+    END $$;
+  `
+
+  // Add include_media column if it doesn't exist
+  await sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'releases' AND column_name = 'include_media'
+      ) THEN
+        ALTER TABLE releases ADD COLUMN include_media BOOLEAN DEFAULT TRUE;
       END IF;
     END $$;
   `
@@ -356,10 +409,11 @@ export async function insertRelease(release: {
   whyThisMatters?: string
   impact?: string
   promptVersion?: string
+  media?: ReleaseMedia | null
 }): Promise<string | null> {
   try {
     const result = await sql<{ id: string }>`
-      INSERT INTO releases (message_id, date, title, description, type, why_this_matters, impact, prompt_version)
+      INSERT INTO releases (message_id, date, title, description, type, why_this_matters, impact, prompt_version, media)
       VALUES (
         ${release.messageId},
         ${release.date},
@@ -368,7 +422,8 @@ export async function insertRelease(release: {
         ${release.type},
         ${release.whyThisMatters ?? null},
         ${release.impact ?? null},
-        ${release.promptVersion ?? null}
+        ${release.promptVersion ?? null},
+        ${release.media ? JSON.stringify(release.media) : null}
       )
       RETURNING id
     `
@@ -491,6 +546,8 @@ export async function updateRelease(
     marketingTitle?: string
     marketingDescription?: string
     marketingWhyThisMatters?: string
+    includeMedia?: boolean
+    featuredImageUrl?: string | null
   }
 ): Promise<boolean> {
   try {
@@ -525,6 +582,14 @@ export async function updateRelease(
     if (updates.marketingDescription !== undefined) {
       fields.push(`marketing_description = $${paramIndex++}`)
       params.push(updates.marketingDescription || null)
+    }
+    if (updates.includeMedia !== undefined) {
+      fields.push(`include_media = $${paramIndex++}`)
+      params.push(updates.includeMedia)
+    }
+    if (updates.featuredImageUrl !== undefined) {
+      fields.push(`featured_image_url = $${paramIndex++}`)
+      params.push(updates.featuredImageUrl || null)
     }
     if (updates.marketingWhyThisMatters !== undefined) {
       fields.push(`marketing_why_this_matters = $${paramIndex++}`)

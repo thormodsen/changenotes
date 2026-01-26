@@ -19,6 +19,29 @@ interface SlackMessage {
   skip_extraction: boolean
 }
 
+interface MediaImage {
+  id: string
+  url: string
+  thumb_url?: string
+  width?: number
+  height?: number
+  name?: string
+}
+
+interface MediaVideo {
+  id: string
+  url: string
+  mp4_url?: string
+  thumb_url?: string
+  duration_ms?: number
+  name?: string
+}
+
+interface ReleaseMedia {
+  images: MediaImage[]
+  videos: MediaVideo[]
+}
+
 interface Release {
   id: string
   message_id: string
@@ -38,6 +61,9 @@ interface Release {
   marketing_description: string | null
   marketing_why_this_matters: string | null
   shared: boolean
+  media: ReleaseMedia | null
+  include_media: boolean
+  featured_image_url: string | null
 }
 
 type PresetKey = '7days' | '30days' | 'month'
@@ -490,6 +516,7 @@ export default function Home() {
       marketing_title: release.marketing_title || '',
       marketing_description: release.marketing_description || '',
       marketing_why_this_matters: release.marketing_why_this_matters || '',
+      featured_image_url: release.featured_image_url || '',
     })
   }
 
@@ -511,6 +538,7 @@ export default function Home() {
           marketingTitle: editForm.marketing_title,
           marketingDescription: editForm.marketing_description,
           marketingWhyThisMatters: editForm.marketing_why_this_matters,
+          featuredImageUrl: editForm.featured_image_url,
         }),
       })
 
@@ -528,6 +556,7 @@ export default function Home() {
               marketing_title: editForm.marketing_title || null,
               marketing_description: editForm.marketing_description || null,
               marketing_why_this_matters: editForm.marketing_why_this_matters || null,
+              featured_image_url: editForm.featured_image_url || null,
             }
           : r
       ))
@@ -1103,6 +1132,29 @@ export default function Home() {
                                           />
                                         </div>
 
+                                        {/* Featured Image */}
+                                        <div className="border-t border-gray-200 pt-3 mt-3">
+                                          <p className="text-xs font-medium text-purple-700 mb-2">Featured Image</p>
+                                          <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Image URL (paste any public image/gif URL)</label>
+                                            <input
+                                              type="text"
+                                              value={editForm.featured_image_url || ''}
+                                              onChange={(e) => setEditForm({ ...editForm, featured_image_url: e.target.value })}
+                                              placeholder="https://example.com/image.gif"
+                                              className="w-full px-2 py-1 border border-purple-300 rounded text-sm"
+                                            />
+                                            {editForm.featured_image_url && (
+                                              <img
+                                                src={editForm.featured_image_url}
+                                                alt="Preview"
+                                                className="mt-2 max-h-32 rounded border border-gray-300"
+                                                onError={(e) => (e.currentTarget.style.display = 'none')}
+                                              />
+                                            )}
+                                          </div>
+                                        </div>
+
                                         {/* Marketing fields */}
                                         <div className="border-t border-gray-200 pt-3 mt-3">
                                           <p className="text-xs font-medium text-teal-700 mb-2">Marketing Copy</p>
@@ -1170,6 +1222,43 @@ export default function Home() {
                                           <div className="mt-2 p-2 bg-amber-50 rounded text-sm">
                                             <span className="font-medium text-amber-800">Impact: </span>
                                             <span className="text-amber-700">{release.impact}</span>
+                                          </div>
+                                        )}
+
+                                        {/* Featured Image */}
+                                        {release.featured_image_url && (
+                                          <div className="mt-3">
+                                            <img
+                                              src={release.featured_image_url}
+                                              alt="Featured"
+                                              className="max-h-48 rounded border border-gray-300"
+                                            />
+                                          </div>
+                                        )}
+
+                                        {/* Slack Media Info (if no featured image) */}
+                                        {!release.featured_image_url && release.media && (release.media.images.length > 0 || release.media.videos.length > 0) && (
+                                          <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded">
+                                            <div className="flex items-center gap-2 text-xs text-gray-600">
+                                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                              </svg>
+                                              <span>
+                                                {release.media.images.length} image{release.media.images.length !== 1 ? 's' : ''}, {release.media.videos.length} video{release.media.videos.length !== 1 ? 's' : ''} in Slack
+                                              </span>
+                                              {releasesWorkspace && release.channel_id && (
+                                                <a
+                                                  href={buildSlackUrl(release.message_id, release.channel_id, releasesWorkspace)}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="text-blue-600 hover:underline"
+                                                >
+                                                  View →
+                                                </a>
+                                              )}
+                                              <span className="text-gray-400">•</span>
+                                              <span className="text-gray-500">Edit to add a public image URL</span>
+                                            </div>
                                           </div>
                                         )}
 

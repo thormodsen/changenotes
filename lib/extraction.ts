@@ -1,4 +1,68 @@
-import { type SlackMessage, insertRelease, updateMessageSkipExtraction } from './db/client'
+import {
+  type SlackMessage,
+  type ReleaseMedia,
+  insertRelease,
+  updateMessageSkipExtraction,
+} from './db/client'
+
+interface SlackFile {
+  id: string
+  mimetype?: string
+  filetype?: string
+  permalink_public?: string
+  url_private?: string
+  mp4?: string
+  thumb_video?: string
+  thumb_720?: string
+  thumb_480?: string
+  thumb_360?: string
+  original_w?: number
+  original_h?: number
+  duration_ms?: number
+  name?: string
+}
+
+function extractMediaFromMessage(rawJson: Record<string, unknown> | null): ReleaseMedia | null {
+  if (!rawJson?.files || !Array.isArray(rawJson.files)) {
+    return null
+  }
+
+  const files = rawJson.files as SlackFile[]
+  const images: ReleaseMedia['images'] = []
+  const videos: ReleaseMedia['videos'] = []
+
+  for (const file of files) {
+    if (file.mimetype?.startsWith('image/')) {
+      images.push({
+        id: file.id,
+        url: file.permalink_public || file.url_private || '',
+        thumb_url: file.thumb_720 || file.thumb_480 || file.thumb_360,
+        width: file.original_w,
+        height: file.original_h,
+        name: file.name,
+      })
+    } else if (
+      file.mimetype?.startsWith('video/') ||
+      file.filetype === 'mov' ||
+      file.filetype === 'mp4'
+    ) {
+      videos.push({
+        id: file.id,
+        url: file.permalink_public || file.mp4 || file.url_private || '',
+        mp4_url: file.mp4,
+        thumb_url: file.thumb_video,
+        duration_ms: file.duration_ms,
+        name: file.name,
+      })
+    }
+  }
+
+  if (images.length === 0 && videos.length === 0) {
+    return null
+  }
+
+  return { images, videos }
+}
 
 interface ExtractedRelease {
   date: string
@@ -291,6 +355,9 @@ export async function extractReleasesFromMessages(
         // Use the Slack message timestamp as the release date
         const messageDate = msg.timestamp.toISOString().split('T')[0]
 
+        // Extract media from the message's raw_json
+        const media = extractMediaFromMessage(msg.raw_json)
+
         for (const release of releases) {
           await insertRelease({
             messageId: msg.id,
@@ -301,6 +368,7 @@ export async function extractReleasesFromMessages(
             whyThisMatters: release.whyThisMatters,
             impact: release.impact,
             promptVersion,
+            media,
           })
           totalExtracted++
         }
