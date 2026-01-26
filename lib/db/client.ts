@@ -1,5 +1,7 @@
 import { sql } from '@vercel/postgres'
 
+let schemaInitialized = false
+
 // Types
 export interface MediaImage {
   id: string
@@ -54,8 +56,11 @@ export interface Release {
   featured_image_url: string | null
 }
 
-// Initialize schema
+// Initialize schema (runs once per process)
 export async function initializeSchema(): Promise<void> {
+  if (schemaInitialized) return
+  schemaInitialized = true
+
   // Create releases table (new schema without FK to slack_messages)
   await sql`
     CREATE TABLE IF NOT EXISTS releases (
@@ -298,9 +303,34 @@ export async function insertRelease(release: {
   }
 }
 
-// Delete releases for a message (used when re-extracting edited messages)
+// Delete releases for a message and its entire thread (used when re-extracting)
+// This ensures thread consistency - if one message is re-extracted, the whole thread is
 export async function deleteReleasesForMessage(messageId: string): Promise<number> {
-  const result = await sql`DELETE FROM releases WHERE message_id = ${messageId}`
+  // Find the thread_ts for this message (could be parent or reply)
+  const threadResult = await sql<{ thread_ts: string | null }>`
+    SELECT thread_ts FROM releases WHERE message_id = ${messageId} LIMIT 1
+  `
+  const threadTs = threadResult.rows[0]?.thread_ts
+
+  // Delete all releases in the same thread
+  // - If this is a reply (has thread_ts), delete all with same thread_ts OR parent message
+  // - If this is a parent (no thread_ts), delete all replies pointing to this message
+  let result
+  if (threadTs) {
+    result = await sql`
+      DELETE FROM releases
+      WHERE message_id = ${messageId}
+      OR thread_ts = ${messageId}
+      OR thread_ts = ${threadTs}
+      OR message_id = ${threadTs}
+    `
+  } else {
+    result = await sql`
+      DELETE FROM releases
+      WHERE message_id = ${messageId}
+      OR thread_ts = ${messageId}
+    `
+  }
   return result.rowCount ?? 0
 }
 

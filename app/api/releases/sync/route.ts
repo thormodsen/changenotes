@@ -37,43 +37,42 @@ export async function POST(request: NextRequest) {
       oldest = Date.now() - 7 * 24 * 60 * 60 * 1000
     }
 
-    // Get existing releases to check for edits
-    const existingReleases = await getExistingReleaseMessageIds(slackConfig.channelId)
-
     // Fetch messages from Slack
     const allMessages = await fetchSlackMessages({ oldest, latest })
     console.log(`Fetched ${allMessages.length} messages from Slack`)
 
-    // Determine which messages need processing:
-    // 1. New messages (not in existing releases)
-    // 2. Edited messages (edited_ts changed)
-    const messagesToProcess: SlackApiMessage[] = []
-    const editedMessageIds: string[] = []
+    // Get existing releases to check for edits
+    let existingReleases = await getExistingReleaseMessageIds(slackConfig.channelId)
 
+    // Find edited messages and delete their releases (plus entire thread)
+    const editedMessageIds: string[] = []
     for (const msg of allMessages) {
       const existingEditedTs = existingReleases.get(msg.ts)
-
-      if (existingEditedTs === undefined) {
-        // New message
-        messagesToProcess.push(msg)
-      } else {
-        // Check if edited
+      if (existingEditedTs !== undefined) {
         const currentEditedTs = msg.edited?.ts || null
         if (currentEditedTs !== existingEditedTs) {
-          messagesToProcess.push(msg)
           editedMessageIds.push(msg.ts)
+          await deleteReleasesForMessage(msg.ts)
         }
+      }
+    }
+
+    // Re-fetch existing releases after deletions (thread members are now "new")
+    if (editedMessageIds.length > 0) {
+      existingReleases = await getExistingReleaseMessageIds(slackConfig.channelId)
+    }
+
+    // Find all messages that need processing (new or had releases deleted)
+    const messagesToProcess: SlackApiMessage[] = []
+    for (const msg of allMessages) {
+      if (!existingReleases.has(msg.ts)) {
+        messagesToProcess.push(msg)
       }
     }
 
     console.log(
       `Processing ${messagesToProcess.length} messages (${editedMessageIds.length} edited)`
     )
-
-    // Delete releases for edited messages (they'll be re-extracted)
-    for (const messageId of editedMessageIds) {
-      await deleteReleasesForMessage(messageId)
-    }
 
     // Extract releases
     if (messagesToProcess.length === 0) {

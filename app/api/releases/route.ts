@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getReleases } from '@/lib/db/client'
+import { getReleases, initializeSchema } from '@/lib/db/client'
 
 export async function GET(request: NextRequest) {
   try {
+    await initializeSchema()
     const { searchParams } = new URL(request.url)
 
     const { releases, total } = await getReleases({
