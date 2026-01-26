@@ -2,23 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
-interface SlackMessage {
-  id: string
-  channel_id: string
-  text: string
-  timestamp: string
-  user_id: string | null
-  username: string | null
-  thread_replies: Array<{
-    id: string
-    text: string
-    timestamp: string
-    user_id: string
-    username?: string
-  }> | null
-  skip_extraction: boolean
-}
-
 interface MediaImage {
   id: string
   url: string
@@ -67,7 +50,6 @@ interface Release {
 }
 
 type PresetKey = '7days' | '30days' | 'month'
-type Tab = 'messages' | 'releases'
 
 const emojiMap: Record<string, string> = {
   rocket: '🚀',
@@ -236,23 +218,13 @@ function buildSlackUrl(messageId: string, channelId: string, workspace: string):
 }
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<Tab>('messages')
   const [isInitialized, setIsInitialized] = useState(false)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [activePreset, setActivePreset] = useState<PresetKey | null>(null)
-  const [loading, setLoading] = useState<'sync' | 'extract' | null>(null)
+  const [loading, setLoading] = useState<'sync' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
-
-  // Messages state
-  const [messages, setMessages] = useState<SlackMessage[]>([])
-  const [messagesTotal, setMessagesTotal] = useState(0)
-  const [slackWorkspace, setSlackWorkspace] = useState('')
-  const [deleteConfirm, setDeleteConfirm] = useState<{
-    messageId: string
-    releases: Release[]
-  } | null>(null)
 
   // Releases state
   const [releases, setReleases] = useState<Release[]>([])
@@ -263,34 +235,7 @@ export default function Home() {
   const [generatingMarketing, setGeneratingMarketing] = useState<string | null>(null)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
 
-  const fetchMessages = useCallback(async () => {
-    try {
-      const res = await fetch('/api/messages?limit=100')
-      if (res.ok) {
-        const data = await res.json()
-        setMessages(data.messages)
-        setMessagesTotal(data.total)
-        setSlackWorkspace(data.workspace || '')
-      }
-    } catch (err) {
-      console.error('Failed to fetch messages:', err)
-    }
-  }, [])
-
-  const loadMoreMessages = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/messages?limit=100&offset=${messages.length}`)
-      if (res.ok) {
-        const data = await res.json()
-        setMessages(prev => [...prev, ...data.messages])
-      }
-    } catch (err) {
-      console.error('Failed to load more messages:', err)
-    }
-  }, [messages.length])
-
   const fetchReleases = useCallback(async () => {
-    setLoading('extract')
     try {
       const params = new URLSearchParams()
       if (startDate) params.append('start', startDate)
@@ -307,8 +252,6 @@ export default function Home() {
       setReleasesWorkspace(data.workspace || '')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch releases')
-    } finally {
-      setLoading(null)
     }
   }, [startDate, endDate])
 
@@ -331,24 +274,11 @@ export default function Home() {
     }
   }, [startDate, endDate, releases.length])
 
-  // Restore active tab from localStorage on mount
+  // Fetch releases on mount
   useEffect(() => {
-    const saved = localStorage.getItem('activeTab')
-    if (saved && (saved === 'messages' || saved === 'releases')) {
-      setActiveTab(saved as Tab)
-    }
     setIsInitialized(true)
-  }, [])
-
-  // Fetch data when tab changes, save to localStorage only after initialization
-  useEffect(() => {
-    if (!isInitialized) return
-
-    if (activeTab === 'messages') fetchMessages()
-    else if (activeTab === 'releases') fetchReleases()
-
-    localStorage.setItem('activeTab', activeTab)
-  }, [activeTab, isInitialized, fetchMessages, fetchReleases])
+    fetchReleases()
+  }, [fetchReleases])
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -385,7 +315,7 @@ export default function Home() {
     else setEndDate(value)
   }
 
-  const syncMessages = async () => {
+  const syncAndExtract = async () => {
     if (!startDate) {
       setError('Please select a start date')
       return
@@ -399,89 +329,23 @@ export default function Home() {
       const params = new URLSearchParams({ start: startDate })
       if (endDate) params.append('end', endDate)
 
-      const res = await fetch(`/api/messages/sync?${params}`, { method: 'POST' })
+      const res = await fetch(`/api/releases/sync?${params}`, { method: 'POST' })
       const data = await res.json()
 
       if (!res.ok) throw new Error(data.error)
 
-      const msg = `Synced ${data.inserted} new messages (${data.skipped} already existed).`
-      const extractMsg = data.extracted > 0 ? ` Extracted ${data.extracted} releases.` : ''
-      setMessage(msg + extractMsg)
-      await fetchMessages()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sync failed')
-    } finally {
-      setLoading(null)
-    }
-  }
+      const parts = []
+      if (data.fetched > 0) parts.push(`Fetched ${data.fetched} messages from Slack`)
+      if (data.extracted > 0) parts.push(`Extracted ${data.extracted} releases`)
+      if (data.edited > 0) parts.push(`Re-extracted ${data.edited} edited messages`)
+      if (data.skipped > 0) parts.push(`Skipped ${data.skipped} non-release messages`)
 
-  const extractReleases = async (reextract = false) => {
-    setLoading('extract')
-    setError(null)
-    setMessage(null)
-
-    try {
-      const params = reextract ? '?reextract=true' : ''
-      const res = await fetch(`/api/releases/extract${params}`, { method: 'POST' })
-      const data = await res.json()
-
-      if (!res.ok) throw new Error(data.error)
-
-      setMessage(
-        `Extracted ${data.extracted} releases from ${data.messagesProcessed} messages (prompt v${data.promptVersion})`
-      )
+      setMessage(parts.join('. ') + ` (prompt v${data.promptVersion})`)
       await fetchReleases()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Extraction failed')
     } finally {
       setLoading(null)
-    }
-  }
-
-  const toggleSkipExtraction = async (id: string, currentSkip: boolean) => {
-    try {
-      const res = await fetch(`/api/messages/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ skipExtraction: !currentSkip }),
-      })
-
-      if (!res.ok) throw new Error('Failed to update message')
-
-      await fetchMessages()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update')
-    }
-  }
-
-  const confirmDeleteMessage = async (messageId: string) => {
-    try {
-      // Fetch releases for this message
-      const res = await fetch(`/api/messages/${messageId}/releases`)
-      if (res.ok) {
-        const data = await res.json()
-        setDeleteConfirm({ messageId, releases: data.releases })
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch releases')
-    }
-  }
-
-  const deleteMessage = async () => {
-    if (!deleteConfirm) return
-
-    try {
-      const res = await fetch(`/api/messages/${deleteConfirm.messageId}`, {
-        method: 'DELETE',
-      })
-
-      if (!res.ok) throw new Error('Failed to delete message')
-
-      setDeleteConfirm(null)
-      await fetchMessages()
-      setMessage('Message and related releases deleted')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete')
     }
   }
 
@@ -564,32 +428,6 @@ export default function Home() {
       setEditForm({})
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save')
-    }
-  }
-
-  const reextractMessage = async (messageId: string) => {
-    if (!confirm('Re-extract this message? This will delete all existing releases for this message and create new ones.')) {
-      return
-    }
-
-    setLoading('extract')
-    setError(null)
-    setMessage(null)
-
-    try {
-      const res = await fetch(`/api/messages/${messageId}/reextract`, {
-        method: 'POST',
-      })
-
-      if (!res.ok) throw new Error('Failed to re-extract')
-
-      const data = await res.json()
-      setMessage(`Re-extracted ${data.extracted} releases (prompt v${data.promptVersion})`)
-      await fetchReleases()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Re-extraction failed')
-    } finally {
-      setLoading(null)
     }
   }
 
@@ -765,22 +603,12 @@ export default function Home() {
         </button>
       </div>
 
-      {/* Tabs */}
+      {/* Header links */}
       <div className="border-b border-gray-200 mb-6">
         <nav className="flex gap-8">
-          {(['messages', 'releases'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab
-                  ? 'border-gray-900 text-gray-900'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              {tab === 'messages' ? 'Slack Messages' : 'Release Notes'}
-            </button>
-          ))}
+          <span className="pb-3 text-sm font-medium border-b-2 border-gray-900 text-gray-900">
+            Release Notes
+          </span>
           <a
             href="/changelog"
             target="_blank"
@@ -860,34 +688,17 @@ export default function Home() {
 
             <div className="space-y-3">
               <button
-                onClick={syncMessages}
+                onClick={syncAndExtract}
                 disabled={loading !== null || !startDate}
                 className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg font-medium transition-colors"
               >
                 {loading === 'sync' ? 'Syncing & Extracting...' : 'Sync & Extract'}
               </button>
 
-              <button
-                onClick={() => extractReleases(false)}
-                disabled={loading !== null}
-                className="w-full py-2.5 bg-purple-500 hover:bg-purple-600 disabled:bg-purple-300 text-white rounded-lg font-medium transition-colors"
-              >
-                {loading === 'extract' ? 'Extracting...' : 'Extract Pending'}
-              </button>
-
-              <hr className="my-2" />
-
-              <button
-                onClick={() => extractReleases(true)}
-                disabled={loading !== null}
-                className="w-full py-2 text-sm bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg transition-colors"
-              >
-                Re-extract All (update prompt)
-              </button>
             </div>
           </div>
 
-          {/* Messages */}
+          {/* Status Messages */}
           {(error || message) && (
             <div className={`rounded-lg p-4 ${error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
               {error || message}
@@ -897,106 +708,8 @@ export default function Home() {
 
         {/* Right Panel - Content */}
         <div className="flex-1 min-w-0">
-          {activeTab === 'messages' && (
-            <div className="bg-white rounded-xl border border-gray-200 min-h-[500px]">
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-medium text-gray-900">
-                    {messagesTotal} message{messagesTotal !== 1 ? 's' : ''}
-                  </h2>
-                </div>
-
-                {messages.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-[400px] text-gray-500">
-                    <p>No messages synced yet. Select a date range and click "Sync & Extract".</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {messages.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className={`p-4 rounded-lg border ${
-                          msg.skip_extraction ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200'
-                        }`}
-                      >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs text-gray-500">
-                                  {new Date(msg.timestamp).toLocaleString()}
-                                </span>
-                                {slackWorkspace && (
-                                  <a
-                                    href={buildSlackUrl(msg.id, msg.channel_id, slackWorkspace)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-gray-400 hover:text-blue-600 transition-colors"
-                                    title="View in Slack"
-                                  >
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                    </svg>
-                                  </a>
-                                )}
-                                {msg.username && (
-                                  <span className="text-xs text-gray-500">@{msg.username}</span>
-                                )}
-                                {msg.skip_extraction && (
-                                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-700">
-                                    Skipped
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-sm text-gray-900">{formatSlackText(msg.text)}</div>
-
-                              {msg.thread_replies && msg.thread_replies.length > 0 && (
-                                <div className="mt-2 pl-4 border-l-2 border-gray-200">
-                                  <p className="text-xs text-gray-500 mb-1">
-                                    {msg.thread_replies.length} {msg.thread_replies.length === 1 ? 'reply' : 'replies'}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                              <button
-                                onClick={() => toggleSkipExtraction(msg.id, msg.skip_extraction)}
-                                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                                  msg.skip_extraction
-                                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                }`}
-                              >
-                                {msg.skip_extraction ? 'Include' : 'Skip'}
-                              </button>
-                              <button
-                                onClick={() => confirmDeleteMessage(msg.id)}
-                                className="px-3 py-1 bg-red-100 text-red-700 rounded text-xs font-medium hover:bg-red-200"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-
-                    {messages.length < messagesTotal && (
-                      <button
-                        onClick={loadMoreMessages}
-                        className="w-full mt-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                      >
-                        Load more ({messagesTotal - messages.length} remaining)
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'releases' && (
-            <div className="bg-white rounded-xl border border-gray-200 min-h-[500px]">
-              {loading === 'extract' ? (
+          <div className="bg-white rounded-xl border border-gray-200 min-h-[500px]">
+            {loading === 'sync' ? (
                 <div className="flex flex-col items-center justify-center h-[500px] text-gray-500">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-purple-500 mb-4" />
                   <p>Loading releases...</p>
@@ -1347,16 +1060,6 @@ export default function Home() {
                                                 ↻ Regenerate marketing
                                               </button>
                                             )}
-                                            <button
-                                              onClick={() => {
-                                                setMenuOpenId(null)
-                                                reextractMessage(release.message_id)
-                                              }}
-                                              disabled={loading !== null}
-                                              className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
-                                            >
-                                              ⚠️ Re-extract from Slack
-                                            </button>
                                           </div>
                                         )}
                                       </div>
@@ -1383,62 +1086,9 @@ export default function Home() {
                 </div>
               )}
             </div>
-          )}
-
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Delete Message?</h3>
-
-            {deleteConfirm.releases.length > 0 ? (
-              <>
-                <p className="text-sm text-gray-600 mb-4">
-                  This will also delete {deleteConfirm.releases.length}{' '}
-                  {deleteConfirm.releases.length === 1 ? 'release' : 'releases'} associated with this message:
-                </p>
-                <div className="max-h-48 overflow-y-auto mb-4 space-y-2">
-                  {deleteConfirm.releases.map((release) => (
-                    <div key={release.id} className="p-2 bg-gray-50 rounded text-sm">
-                      <div className="font-medium text-gray-900">{release.title}</div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {release.type} · {release.date}
-                        {release.published && (
-                          <span className="ml-2 px-2 py-0.5 rounded bg-green-100 text-green-700">
-                            Published
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-gray-600 mb-4">
-                This message has no associated releases.
-              </p>
-            )}
-
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={deleteMessage}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   )
 }

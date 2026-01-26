@@ -1,28 +1,6 @@
 import { sql } from '@vercel/postgres'
 
 // Types
-export interface SlackMessage {
-  id: string
-  channel_id: string
-  text: string
-  timestamp: Date
-  user_id: string | null
-  username: string | null
-  thread_ts: string | null
-  thread_replies: ThreadReply[] | null
-  raw_json: Record<string, unknown> | null
-  fetched_at: Date
-  skip_extraction: boolean
-}
-
-export interface ThreadReply {
-  id: string
-  text: string
-  timestamp: string
-  user_id: string
-  username?: string
-}
-
 export interface MediaImage {
   id: string
   url: string
@@ -59,8 +37,12 @@ export interface Release {
   extracted_at: Date
   published: boolean
   published_at: Date | null
-  message_timestamp?: Date
-  channel_id?: string
+  // Slack metadata (moved from slack_messages)
+  message_timestamp: Date
+  channel_id: string
+  thread_ts: string | null
+  edited_ts: string | null
+  raw_json: Record<string, unknown> | null
   // Marketing fields for share cards
   marketing_title: string | null
   marketing_description: string | null
@@ -74,38 +56,11 @@ export interface Release {
 
 // Initialize schema
 export async function initializeSchema(): Promise<void> {
-  await sql`
-    CREATE TABLE IF NOT EXISTS slack_messages (
-      id TEXT PRIMARY KEY,
-      channel_id TEXT NOT NULL,
-      text TEXT NOT NULL,
-      timestamp TIMESTAMPTZ NOT NULL,
-      user_id TEXT,
-      username TEXT,
-      thread_replies JSONB,
-      raw_json JSONB,
-      fetched_at TIMESTAMPTZ DEFAULT NOW(),
-      skip_extraction BOOLEAN DEFAULT FALSE
-    )
-  `
-
-  // Add skip_extraction column if it doesn't exist (for existing tables)
-  await sql`
-    DO $$
-    BEGIN
-      IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'slack_messages' AND column_name = 'skip_extraction'
-      ) THEN
-        ALTER TABLE slack_messages ADD COLUMN skip_extraction BOOLEAN DEFAULT FALSE;
-      END IF;
-    END $$;
-  `
-
+  // Create releases table (new schema without FK to slack_messages)
   await sql`
     CREATE TABLE IF NOT EXISTS releases (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      message_id TEXT NOT NULL REFERENCES slack_messages(id) ON DELETE CASCADE,
+      message_id TEXT NOT NULL,
       date DATE NOT NULL,
       title TEXT NOT NULL,
       description TEXT,
@@ -115,11 +70,79 @@ export async function initializeSchema(): Promise<void> {
       prompt_version TEXT,
       extracted_at TIMESTAMPTZ DEFAULT NOW(),
       published BOOLEAN DEFAULT FALSE,
-      published_at TIMESTAMPTZ
+      published_at TIMESTAMPTZ,
+      -- Slack metadata
+      message_timestamp TIMESTAMPTZ NOT NULL,
+      channel_id TEXT NOT NULL,
+      thread_ts TEXT,
+      edited_ts TEXT,
+      raw_json JSONB,
+      -- Marketing fields
+      marketing_title TEXT,
+      marketing_description TEXT,
+      marketing_why_this_matters TEXT,
+      shared BOOLEAN DEFAULT FALSE,
+      -- Media
+      media JSONB,
+      include_media BOOLEAN DEFAULT TRUE,
+      featured_image_url TEXT,
+      -- Full-text search
+      search_vector tsvector
     )
   `
 
-  // Add marketing columns if they don't exist
+  // Migration: Drop FK constraint if it exists (from old schema)
+  await sql`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'releases_message_id_fkey'
+        AND table_name = 'releases'
+      ) THEN
+        ALTER TABLE releases DROP CONSTRAINT releases_message_id_fkey;
+      END IF;
+    END $$;
+  `
+
+  // Migration: Add new columns if they don't exist (for existing installations)
+  await sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'releases' AND column_name = 'message_timestamp'
+      ) THEN
+        ALTER TABLE releases ADD COLUMN message_timestamp TIMESTAMPTZ;
+        ALTER TABLE releases ADD COLUMN channel_id TEXT;
+        ALTER TABLE releases ADD COLUMN thread_ts TEXT;
+        ALTER TABLE releases ADD COLUMN edited_ts TEXT;
+        ALTER TABLE releases ADD COLUMN raw_json JSONB;
+      END IF;
+    END $$;
+  `
+
+  // Migration: Backfill from slack_messages if it exists
+  await sql`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.tables WHERE table_name = 'slack_messages'
+      ) THEN
+        UPDATE releases r
+        SET
+          message_timestamp = m.timestamp,
+          channel_id = m.channel_id,
+          thread_ts = m.thread_ts,
+          raw_json = m.raw_json
+        FROM slack_messages m
+        WHERE r.message_id = m.id
+        AND r.message_timestamp IS NULL;
+      END IF;
+    END $$;
+  `
+
+  // Add older columns if missing (for fresh installs that might have partial schema)
   await sql`
     DO $$
     BEGIN
@@ -131,72 +154,30 @@ export async function initializeSchema(): Promise<void> {
         ALTER TABLE releases ADD COLUMN marketing_description TEXT;
         ALTER TABLE releases ADD COLUMN marketing_why_this_matters TEXT;
       END IF;
-    END $$;
-  `
-
-  // Add shared column if it doesn't exist
-  await sql`
-    DO $$
-    BEGIN
       IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'releases' AND column_name = 'shared'
       ) THEN
         ALTER TABLE releases ADD COLUMN shared BOOLEAN DEFAULT FALSE;
       END IF;
-    END $$;
-  `
-
-  // Add media column if it doesn't exist
-  await sql`
-    DO $$
-    BEGIN
       IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'releases' AND column_name = 'media'
       ) THEN
         ALTER TABLE releases ADD COLUMN media JSONB;
       END IF;
-    END $$;
-  `
-
-  // Add include_media column if it doesn't exist
-  await sql`
-    DO $$
-    BEGIN
       IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'releases' AND column_name = 'include_media'
       ) THEN
         ALTER TABLE releases ADD COLUMN include_media BOOLEAN DEFAULT TRUE;
       END IF;
-    END $$;
-  `
-
-  // Add thread_ts column for easier thread linking
-  await sql`
-    DO $$
-    BEGIN
       IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'slack_messages' AND column_name = 'thread_ts'
+        WHERE table_name = 'releases' AND column_name = 'featured_image_url'
       ) THEN
-        ALTER TABLE slack_messages ADD COLUMN thread_ts TEXT;
+        ALTER TABLE releases ADD COLUMN featured_image_url TEXT;
       END IF;
-    END $$;
-  `
-
-  // Backfill thread_ts from raw_json
-  await sql`
-    UPDATE slack_messages
-    SET thread_ts = raw_json->>'thread_ts'
-    WHERE thread_ts IS NULL AND raw_json->>'thread_ts' IS NOT NULL
-  `
-
-  // Add search_vector column for full-text search
-  await sql`
-    DO $$
-    BEGIN
       IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'releases' AND column_name = 'search_vector'
@@ -237,107 +218,21 @@ export async function initializeSchema(): Promise<void> {
     END $$;
   `
 
-  // Create indexes (these are idempotent)
-  await sql`CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON slack_messages(timestamp DESC)`
+  // Create indexes
   await sql`CREATE INDEX IF NOT EXISTS idx_releases_message ON releases(message_id)`
   await sql`CREATE INDEX IF NOT EXISTS idx_releases_date ON releases(date DESC)`
   await sql`CREATE INDEX IF NOT EXISTS idx_releases_published ON releases(published)`
   await sql`CREATE INDEX IF NOT EXISTS idx_releases_search ON releases USING GIN(search_vector)`
-  await sql`CREATE INDEX IF NOT EXISTS idx_messages_thread_ts ON slack_messages(thread_ts)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_releases_thread_ts ON releases(thread_ts)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_releases_channel ON releases(channel_id)`
 }
 
-// Messages
-export async function insertMessage(msg: {
-  id: string
-  channelId: string
-  text: string
-  timestamp: Date
-  userId?: string
-  username?: string
-  threadTs?: string
-  threadReplies?: ThreadReply[]
-  rawJson?: Record<string, unknown>
-}): Promise<boolean> {
-  try {
-    // Extract thread_ts from rawJson if not provided directly
-    const threadTs = msg.threadTs ?? (msg.rawJson?.thread_ts as string | undefined) ?? null
-
-    await sql`
-      INSERT INTO slack_messages (id, channel_id, text, timestamp, user_id, username, thread_ts, thread_replies, raw_json)
-      VALUES (
-        ${msg.id},
-        ${msg.channelId},
-        ${msg.text},
-        ${msg.timestamp.toISOString()},
-        ${msg.userId ?? null},
-        ${msg.username ?? null},
-        ${threadTs},
-        ${msg.threadReplies ? JSON.stringify(msg.threadReplies) : null},
-        ${msg.rawJson ? JSON.stringify(msg.rawJson) : null}
-      )
-      ON CONFLICT (id) DO NOTHING
-    `
-    return true
-  } catch (err) {
-    console.error('Failed to insert message:', err)
-    return false
-  }
-}
-
-export async function getMessageIds(channelId: string): Promise<Set<string>> {
-  const result = await sql<{ id: string }>`
-    SELECT id FROM slack_messages WHERE channel_id = ${channelId}
+// Get existing release message IDs for deduplication
+export async function getExistingReleaseMessageIds(channelId: string): Promise<Map<string, string | null>> {
+  const result = await sql<{ message_id: string; edited_ts: string | null }>`
+    SELECT message_id, edited_ts FROM releases WHERE channel_id = ${channelId}
   `
-  return new Set(result.rows.map((r) => r.id))
-}
-
-export async function getAllMessages(options?: {
-  limit?: number
-  offset?: number
-}): Promise<{ messages: SlackMessage[]; total: number }> {
-  const limit = options?.limit || 100
-  const offset = options?.offset || 0
-
-  const [messagesResult, countResult] = await Promise.all([
-    sql<SlackMessage>`
-      SELECT * FROM slack_messages
-      ORDER BY timestamp DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `,
-    sql<{ count: string }>`SELECT COUNT(*) as count FROM slack_messages`,
-  ])
-
-  return {
-    messages: messagesResult.rows,
-    total: parseInt(countResult.rows[0].count),
-  }
-}
-
-export async function updateMessageSkipExtraction(
-  id: string,
-  skipExtraction: boolean
-): Promise<boolean> {
-  try {
-    await sql`
-      UPDATE slack_messages
-      SET skip_extraction = ${skipExtraction}
-      WHERE id = ${id}
-    `
-    return true
-  } catch (err) {
-    console.error('Failed to update skip_extraction:', err)
-    return false
-  }
-}
-
-export async function deleteMessage(id: string): Promise<boolean> {
-  try {
-    await sql`DELETE FROM slack_messages WHERE id = ${id}`
-    return true
-  } catch (err) {
-    console.error('Failed to delete message:', err)
-    return false
-  }
+  return new Map(result.rows.map((r) => [r.message_id, r.edited_ts]))
 }
 
 export async function getReleasesByMessageId(messageId: string): Promise<Release[]> {
@@ -349,54 +244,9 @@ export async function getReleasesByMessageId(messageId: string): Promise<Release
 
 export async function getReleaseById(id: string): Promise<Release | null> {
   const result = await sql<Release>`
-    SELECT r.*, m.timestamp as message_timestamp
-    FROM releases r
-    INNER JOIN slack_messages m ON r.message_id = m.id
-    WHERE r.id = ${id}
+    SELECT * FROM releases WHERE id = ${id}
   `
   return result.rows[0] || null
-}
-
-export async function getMessagesWithoutReleases(promptVersion?: string): Promise<SlackMessage[]> {
-  if (promptVersion) {
-    // Get messages that either have no releases OR have releases with a different prompt version
-    // Skip messages marked with skip_extraction = true
-    const result = await sql<SlackMessage>`
-      SELECT m.* FROM slack_messages m
-      WHERE m.skip_extraction = FALSE
-      AND NOT EXISTS (
-        SELECT 1 FROM releases r
-        WHERE r.message_id = m.id
-        AND r.prompt_version = ${promptVersion}
-      )
-      ORDER BY m.timestamp DESC
-    `
-    return result.rows
-  }
-
-  // Get messages with no releases at all and skip_extraction = false
-  const result = await sql<SlackMessage>`
-    SELECT m.* FROM slack_messages m
-    WHERE m.skip_extraction = FALSE
-    AND NOT EXISTS (
-      SELECT 1 FROM releases r WHERE r.message_id = m.id
-    )
-    ORDER BY m.timestamp DESC
-  `
-  return result.rows
-}
-
-export async function getMessagesByDateRange(
-  start: Date,
-  end: Date
-): Promise<SlackMessage[]> {
-  const result = await sql<SlackMessage>`
-    SELECT * FROM slack_messages
-    WHERE timestamp >= ${start.toISOString()}
-    AND timestamp <= ${end.toISOString()}
-    ORDER BY timestamp DESC
-  `
-  return result.rows
 }
 
 // Releases
@@ -410,10 +260,19 @@ export async function insertRelease(release: {
   impact?: string
   promptVersion?: string
   media?: ReleaseMedia | null
+  // New Slack metadata fields
+  messageTimestamp: Date
+  channelId: string
+  threadTs?: string | null
+  editedTs?: string | null
+  rawJson?: Record<string, unknown> | null
 }): Promise<string | null> {
   try {
     const result = await sql<{ id: string }>`
-      INSERT INTO releases (message_id, date, title, description, type, why_this_matters, impact, prompt_version, media)
+      INSERT INTO releases (
+        message_id, date, title, description, type, why_this_matters, impact, prompt_version, media,
+        message_timestamp, channel_id, thread_ts, edited_ts, raw_json
+      )
       VALUES (
         ${release.messageId},
         ${release.date},
@@ -423,7 +282,12 @@ export async function insertRelease(release: {
         ${release.whyThisMatters ?? null},
         ${release.impact ?? null},
         ${release.promptVersion ?? null},
-        ${release.media ? JSON.stringify(release.media) : null}
+        ${release.media ? JSON.stringify(release.media) : null},
+        ${release.messageTimestamp.toISOString()},
+        ${release.channelId},
+        ${release.threadTs ?? null},
+        ${release.editedTs ?? null},
+        ${release.rawJson ? JSON.stringify(release.rawJson) : null}
       )
       RETURNING id
     `
@@ -434,6 +298,12 @@ export async function insertRelease(release: {
   }
 }
 
+// Delete releases for a message (used when re-extracting edited messages)
+export async function deleteReleasesForMessage(messageId: string): Promise<number> {
+  const result = await sql`DELETE FROM releases WHERE message_id = ${messageId}`
+  return result.rowCount ?? 0
+}
+
 export async function getReleases(options?: {
   startDate?: string
   endDate?: string
@@ -442,42 +312,37 @@ export async function getReleases(options?: {
   limit?: number
   offset?: number
 }): Promise<{ releases: Release[]; total: number }> {
-  let whereClause = 'WHERE m.skip_extraction = FALSE'
+  let whereClause = 'WHERE 1=1'
   const params: unknown[] = []
   let paramIndex = 1
 
   if (options?.startDate) {
-    whereClause += ` AND r.date >= $${paramIndex++}`
+    whereClause += ` AND date >= $${paramIndex++}`
     params.push(options.startDate)
   }
   if (options?.endDate) {
-    whereClause += ` AND r.date <= $${paramIndex++}`
+    whereClause += ` AND date <= $${paramIndex++}`
     params.push(options.endDate)
   }
   if (options?.published !== undefined) {
-    whereClause += ` AND r.published = $${paramIndex++}`
+    whereClause += ` AND published = $${paramIndex++}`
     params.push(options.published)
   }
   if (options?.promptVersion) {
-    whereClause += ` AND r.prompt_version = $${paramIndex++}`
+    whereClause += ` AND prompt_version = $${paramIndex++}`
     params.push(options.promptVersion)
   }
 
   // Count query
-  const countQuery = `
-    SELECT COUNT(*) as count FROM releases r
-    INNER JOIN slack_messages m ON r.message_id = m.id
-    ${whereClause}
-  `
+  const countQuery = `SELECT COUNT(*) as count FROM releases ${whereClause}`
   const countResult = await sql.query<{ count: string }>(countQuery, params)
   const total = parseInt(countResult.rows[0]?.count || '0')
 
   // Data query
   let dataQuery = `
-    SELECT r.*, m.timestamp as message_timestamp, m.channel_id FROM releases r
-    INNER JOIN slack_messages m ON r.message_id = m.id
+    SELECT * FROM releases
     ${whereClause}
-    ORDER BY r.date DESC, m.timestamp DESC
+    ORDER BY date DESC, message_timestamp DESC
   `
 
   if (options?.limit) {
@@ -633,26 +498,22 @@ export async function updateReleaseMarketing(
 }
 
 export async function getStats(): Promise<{
-  totalMessages: number
   totalReleases: number
   publishedReleases: number
-  messagesWithoutReleases: number
+  unpublishedReleases: number
 }> {
-  const [messages, releases, published, unprocessed] = await Promise.all([
-    sql<{ count: string }>`SELECT COUNT(*) as count FROM slack_messages`,
+  const [releases, published] = await Promise.all([
     sql<{ count: string }>`SELECT COUNT(*) as count FROM releases`,
     sql<{ count: string }>`SELECT COUNT(*) as count FROM releases WHERE published = true`,
-    sql<{ count: string }>`
-      SELECT COUNT(*) as count FROM slack_messages m
-      WHERE NOT EXISTS (SELECT 1 FROM releases r WHERE r.message_id = m.id)
-    `,
   ])
 
+  const total = parseInt(releases.rows[0].count)
+  const pub = parseInt(published.rows[0].count)
+
   return {
-    totalMessages: parseInt(messages.rows[0].count),
-    totalReleases: parseInt(releases.rows[0].count),
-    publishedReleases: parseInt(published.rows[0].count),
-    messagesWithoutReleases: parseInt(unprocessed.rows[0].count),
+    totalReleases: total,
+    publishedReleases: pub,
+    unpublishedReleases: total - pub,
   }
 }
 
@@ -677,14 +538,12 @@ export async function getParentRelease(releaseId: string): Promise<RelatedReleas
   const result = await sql<RelatedRelease>`
     SELECT r.id, r.title, r.type, r.date, r.description, r.why_this_matters, r.impact
     FROM releases r
-    INNER JOIN slack_messages parent_msg ON r.message_id = parent_msg.id
-    WHERE parent_msg.id = (
-      SELECT m.thread_ts
-      FROM releases rel
-      INNER JOIN slack_messages m ON rel.message_id = m.id
-      WHERE rel.id = ${releaseId}
-      AND m.thread_ts IS NOT NULL
-      AND m.thread_ts != m.id
+    WHERE r.message_id = (
+      SELECT thread_ts
+      FROM releases
+      WHERE id = ${releaseId}
+      AND thread_ts IS NOT NULL
+      AND thread_ts != message_id
     )
     AND r.published = true
     LIMIT 1
@@ -699,12 +558,10 @@ export async function getSiblingReleases(releaseId: string): Promise<RelatedRele
   const result = await sql<RelatedRelease>`
     SELECT DISTINCT r.id, r.title, r.type, r.date, r.description, r.why_this_matters, r.impact
     FROM releases r
-    INNER JOIN slack_messages m ON r.message_id = m.id
-    WHERE m.thread_ts = (
-      SELECT COALESCE(msg.thread_ts, msg.id)
-      FROM releases rel
-      INNER JOIN slack_messages msg ON rel.message_id = msg.id
-      WHERE rel.id = ${releaseId}
+    WHERE COALESCE(r.thread_ts, r.message_id) = (
+      SELECT COALESCE(thread_ts, message_id)
+      FROM releases
+      WHERE id = ${releaseId}
     )
     AND r.id != ${releaseId}
     AND r.published = true
