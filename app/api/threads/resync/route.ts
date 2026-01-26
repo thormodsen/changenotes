@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
 import { insertMessage, type SlackMessage, type Release } from '@/lib/db/client'
 import { extractReleasesFromMessages } from '@/lib/extraction'
+import { loadSlackConfig } from '@/lib/config'
 
 interface SlackApiMessage {
   ts: string
@@ -9,16 +10,6 @@ interface SlackApiMessage {
   user?: string
   username?: string
   thread_ts?: string
-}
-
-function loadConfig() {
-  const slackToken = process.env.SLACK_TOKEN
-  const slackChannelId = process.env.SLACK_CHANNEL_ID
-
-  if (!slackToken) throw new Error('SLACK_TOKEN is required')
-  if (!slackChannelId) throw new Error('SLACK_CHANNEL_ID is required')
-
-  return { slackToken, slackChannelId }
 }
 
 export async function POST(request: NextRequest) {
@@ -30,7 +21,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'threadTs is required' }, { status: 400 })
     }
 
-    const config = loadConfig()
+    const slackConfig = loadSlackConfig()
 
     // Step 1: Delete existing messages and releases for this thread
     // Delete releases first (foreign key constraint)
@@ -51,8 +42,8 @@ export async function POST(request: NextRequest) {
 
     // Step 2: Fetch thread from Slack
     const res = await fetch(
-      `https://slack.com/api/conversations.replies?channel=${config.slackChannelId}&ts=${threadTs}&limit=100`,
-      { headers: { Authorization: `Bearer ${config.slackToken}` } }
+      `https://slack.com/api/conversations.replies?channel=${slackConfig.channelId}&ts=${threadTs}&limit=100`,
+      { headers: { Authorization: `Bearer ${slackConfig.token}` } }
     )
 
     const data = await res.json()
@@ -69,7 +60,7 @@ export async function POST(request: NextRequest) {
 
       const success = await insertMessage({
         id: msg.ts,
-        channelId: config.slackChannelId,
+        channelId: slackConfig.channelId,
         text: msg.text || '',
         timestamp,
         userId: msg.user,
@@ -81,7 +72,7 @@ export async function POST(request: NextRequest) {
       if (success) {
         newMessages.push({
           id: msg.ts,
-          channel_id: config.slackChannelId,
+          channel_id: slackConfig.channelId,
           text: msg.text || '',
           timestamp,
           user_id: msg.user || null,

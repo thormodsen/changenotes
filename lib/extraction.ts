@@ -4,6 +4,9 @@ import {
   insertRelease,
   updateMessageSkipExtraction,
 } from './db/client'
+import { loadOpenRouterConfig, loadLangfuseConfig, type OpenRouterConfig } from './config'
+import { fetchPrompt } from './langfuse'
+import { parseJsonArray } from './json'
 
 interface SlackFile {
   id: string
@@ -74,82 +77,10 @@ interface ExtractedRelease {
   impact?: string
 }
 
-function loadConfig() {
-  const openRouterApiKey = process.env.OPENROUTER_API_KEY
-  const langfuseSecretKey = process.env.LANGFUSE_SECRET_KEY
-  const langfusePublicKey = process.env.LANGFUSE_PUBLIC_KEY
-  const langfuseBaseUrl = process.env.LANGFUSE_BASE_URL
-
-  if (!openRouterApiKey) throw new Error('OPENROUTER_API_KEY is required')
-
-  return { openRouterApiKey, langfuseSecretKey, langfusePublicKey, langfuseBaseUrl }
-}
-
-async function fetchLangfusePrompt(
-  config: { secretKey: string; publicKey: string; baseUrl?: string },
-  promptName: string
-): Promise<{ prompt: string; version: string } | null> {
-  const baseUrl = config.baseUrl || 'https://cloud.langfuse.com'
-  const auth = Buffer.from(`${config.publicKey}:${config.secretKey}`).toString('base64')
-
-  const res = await fetch(`${baseUrl}/api/public/v2/prompts/${promptName}`, {
-    headers: { Authorization: `Basic ${auth}` },
-  })
-
-  if (!res.ok) return null
-
-  const data = await res.json()
-  let promptText: string | null = null
-
-  if (data.prompt) {
-    if (Array.isArray(data.prompt)) {
-      promptText = data.prompt.map((m: { content: string }) => m.content).join('\n')
-    } else {
-      promptText = data.prompt
-    }
-  }
-
-  if (!promptText) return null
-
-  return {
-    prompt: promptText,
-    version: data.version?.toString() || 'unknown',
-  }
-}
 
 function formatMessageSimple(msg: SlackMessage): string {
   const date = msg.timestamp.toISOString().split('T')[0]
   return `[${msg.id}] [${date}] ${msg.text}`
-}
-
-function stripMarkdownCodeBlock(text: string): string {
-  let result = text.trim()
-  if (result.startsWith('```')) {
-    const lines = result.split('\n')
-    lines.shift()
-    if (lines[lines.length - 1]?.trim() === '```') lines.pop()
-    result = lines.join('\n').trim()
-  }
-  return result
-}
-
-function parseJsonArray<T>(textContent: string, context: string): T[] {
-  const jsonText = stripMarkdownCodeBlock(textContent)
-
-  try {
-    const parsed = JSON.parse(jsonText) as T[]
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    // Try fixing trailing commas (common LLM output issue)
-    try {
-      const fixed = jsonText.replace(/,(\s*[}\]])/g, '$1')
-      const parsed = JSON.parse(fixed) as T[]
-      return Array.isArray(parsed) ? parsed : []
-    } catch {
-      console.error(`Failed to parse ${context} JSON:`, jsonText.substring(0, 200))
-      return []
-    }
-  }
 }
 
 /**
@@ -157,7 +88,7 @@ function parseJsonArray<T>(textContent: string, context: string): T[] {
  */
 async function classifyMessages(
   messages: SlackMessage[],
-  config: { openRouterApiKey: string },
+  config: OpenRouterConfig,
   classificationPrompt: string
 ): Promise<Set<string>> {
   if (messages.length === 0) return new Set()
@@ -185,7 +116,7 @@ ${messagesText}`
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${config.openRouterApiKey}`,
+        Authorization: `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://changenotes.vercel.app',
         'X-Title': 'Changelog Viewer',
@@ -242,23 +173,13 @@ export async function extractReleasesFromMessages(
     return { extracted: 0, promptVersion: 'unknown', errors: [] }
   }
 
-  const config = loadConfig()
-
-  // Get prompt from Langfuse
-  if (!config.langfuseSecretKey || !config.langfusePublicKey) {
-    throw new Error('Langfuse configuration is required')
-  }
-
-  const langfuseConfig = {
-    secretKey: config.langfuseSecretKey,
-    publicKey: config.langfusePublicKey,
-    baseUrl: config.langfuseBaseUrl,
-  }
+  const openRouterConfig = loadOpenRouterConfig()
+  const langfuseConfig = loadLangfuseConfig()
 
   // Fetch both prompts from Langfuse
   const [extractionResult, classificationResult] = await Promise.all([
-    fetchLangfusePrompt(langfuseConfig, 'release-extraction'),
-    fetchLangfusePrompt(langfuseConfig, 'release-classification'),
+    fetchPrompt(langfuseConfig, 'release-extraction'),
+    fetchPrompt(langfuseConfig, 'release-classification'),
   ])
 
   if (!extractionResult) {
@@ -282,7 +203,7 @@ export async function extractReleasesFromMessages(
     // Pass 1: Classify which messages are release-worthy
     const releaseIds = await classifyMessages(
       threadMessages,
-      { openRouterApiKey: config.openRouterApiKey },
+      openRouterConfig,
       classificationPrompt
     )
 
@@ -310,7 +231,7 @@ export async function extractReleasesFromMessages(
         const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${config.openRouterApiKey}`,
+            Authorization: `Bearer ${openRouterConfig.apiKey}`,
             'Content-Type': 'application/json',
             'HTTP-Referer': 'https://changenotes.vercel.app',
             'X-Title': 'Changelog Viewer',

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { insertMessage, getMessageIds, initializeSchema, type SlackMessage } from '@/lib/db/client'
 import { extractReleasesFromMessages } from '@/lib/extraction'
+import { loadSlackConfig } from '@/lib/config'
 
 interface SlackApiMessage {
   ts: string
@@ -11,16 +12,6 @@ interface SlackApiMessage {
   bot_id?: string
   thread_ts?: string
   reply_count?: number
-}
-
-function loadConfig() {
-  const slackToken = process.env.SLACK_TOKEN
-  const slackChannelId = process.env.SLACK_CHANNEL_ID
-
-  if (!slackToken) throw new Error('SLACK_TOKEN is required')
-  if (!slackChannelId) throw new Error('SLACK_CHANNEL_ID is required')
-
-  return { slackToken, slackChannelId }
 }
 
 async function fetchThreadReplies(
@@ -47,13 +38,13 @@ export async function POST(request: NextRequest) {
     const endDate = searchParams.get('end')
     const days = searchParams.get('days')
 
-    const config = loadConfig()
+    const slackConfig = loadSlackConfig()
 
     // Ensure schema exists
     await initializeSchema()
 
     // Get existing message IDs to skip
-    const existingIds = await getMessageIds(config.slackChannelId)
+    const existingIds = await getMessageIds(slackConfig.channelId)
 
     // Calculate time window
     let oldest: number | undefined
@@ -80,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     do {
       const params = new URLSearchParams({
-        channel: config.slackChannelId,
+        channel: slackConfig.channelId,
         limit: '200',
       })
       if (oldestTs) params.append('oldest', oldestTs)
@@ -88,7 +79,7 @@ export async function POST(request: NextRequest) {
       if (cursor) params.append('cursor', cursor)
 
       const res = await fetch(`https://slack.com/api/conversations.history?${params}`, {
-        headers: { Authorization: `Bearer ${config.slackToken}` },
+        headers: { Authorization: `Bearer ${slackConfig.token}` },
       })
 
       const data = await res.json()
@@ -105,7 +96,7 @@ export async function POST(request: NextRequest) {
         // Insert the parent message
         const success = await insertMessage({
           id: msg.ts,
-          channelId: config.slackChannelId,
+          channelId: slackConfig.channelId,
           text: msg.text || '',
           timestamp,
           userId: msg.user,
@@ -119,7 +110,7 @@ export async function POST(request: NextRequest) {
           existingIds.add(msg.ts)
           newMessages.push({
             id: msg.ts,
-            channel_id: config.slackChannelId,
+            channel_id: slackConfig.channelId,
             text: msg.text || '',
             timestamp,
             user_id: msg.user || null,
@@ -135,8 +126,8 @@ export async function POST(request: NextRequest) {
         // If this message has replies, fetch and save them as separate messages
         if (msg.thread_ts === msg.ts && msg.reply_count && msg.reply_count > 0) {
           const threadMessages = await fetchThreadReplies(
-            config.slackToken,
-            config.slackChannelId,
+            slackConfig.token,
+            slackConfig.channelId,
             msg.ts
           )
 
@@ -150,7 +141,7 @@ export async function POST(request: NextRequest) {
             const replyTimestamp = new Date(parseFloat(reply.ts) * 1000)
             const replySuccess = await insertMessage({
               id: reply.ts,
-              channelId: config.slackChannelId,
+              channelId: slackConfig.channelId,
               text: reply.text || '',
               timestamp: replyTimestamp,
               userId: reply.user,
@@ -164,7 +155,7 @@ export async function POST(request: NextRequest) {
               existingIds.add(reply.ts)
               newMessages.push({
                 id: reply.ts,
-                channel_id: config.slackChannelId,
+                channel_id: slackConfig.channelId,
                 text: reply.text || '',
                 timestamp: replyTimestamp,
                 user_id: reply.user || null,
