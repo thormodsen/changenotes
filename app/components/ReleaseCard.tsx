@@ -254,7 +254,7 @@ export function ReleaseCard({
         release.published ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-100'
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
         <div className="flex-1 min-w-0">
           <ReleaseCardHeader release={release} slackUrl={slackUrl} />
 
@@ -322,11 +322,6 @@ function ReleaseCardHeader({
             />
           </svg>
         </a>
-      )}
-      {release.published && (
-        <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-          Published
-        </span>
       )}
       {release.prompt_version && (
         <span className="text-xs text-gray-400">v{release.prompt_version}</span>
@@ -630,9 +625,10 @@ function ReleaseCardActions({
 }) {
   return (
     <div className="flex flex-col gap-2">
+      {/* Desktop: show all buttons */}
       <button
         onClick={onTogglePublish}
-        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+        className={`hidden sm:block px-3 py-1 rounded text-xs font-medium transition-colors ${
           release.published
             ? 'bg-green-500 text-white hover:bg-green-600'
             : 'border border-gray-300 text-gray-600 hover:bg-gray-100'
@@ -643,7 +639,7 @@ function ReleaseCardActions({
       <button
         onClick={onToggleShare}
         disabled={generatingMarketing}
-        className={`px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 ${
+        className={`hidden sm:block px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 ${
           release.shared
             ? 'bg-pink-500 text-white hover:bg-pink-600'
             : 'border border-gray-300 text-gray-600 hover:bg-gray-100'
@@ -653,16 +649,18 @@ function ReleaseCardActions({
       </button>
       <button
         onClick={onEdit}
-        className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
+        className="hidden sm:block px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
       >
         Edit
       </button>
       <button
         onClick={onDelete}
-        className="px-3 py-1 bg-red-100 text-red-700 rounded text-xs font-medium hover:bg-red-200"
+        className="hidden sm:block px-3 py-1 bg-red-100 text-red-700 rounded text-xs font-medium hover:bg-red-200"
       >
         Delete
       </button>
+
+      {/* Menu button - always visible, contains all actions on mobile */}
       <div className="relative">
         <button
           onClick={(e) => {
@@ -675,6 +673,47 @@ function ReleaseCardActions({
         </button>
         {menuOpen && (
           <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[160px]">
+            {/* Mobile-only actions */}
+            <button
+              onClick={() => {
+                onMenuClose()
+                onTogglePublish()
+              }}
+              className="sm:hidden w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              {release.published ? '✓ Published' : 'Publish'}
+            </button>
+            <button
+              onClick={() => {
+                onMenuClose()
+                onToggleShare()
+              }}
+              disabled={generatingMarketing}
+              className="sm:hidden w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+            >
+              {generatingMarketing ? 'Working...' : release.shared ? '✓ Shared' : 'Share'}
+            </button>
+            <button
+              onClick={() => {
+                onMenuClose()
+                onEdit()
+              }}
+              className="sm:hidden w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => {
+                onMenuClose()
+                onDelete()
+              }}
+              className="sm:hidden w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
+            >
+              Delete
+            </button>
+            <div className="sm:hidden border-t border-gray-100 my-1" />
+
+            {/* Always visible menu items */}
             <button
               onClick={() => {
                 onMenuClose()

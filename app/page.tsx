@@ -85,12 +85,12 @@ export default function Home() {
   }
 
   return (
-    <main className="p-6 max-w-7xl mx-auto">
+    <main className="p-4 sm:p-6 max-w-7xl mx-auto">
       <Header onLogout={handleLogout} />
       <Navigation />
 
-      <div className="flex gap-6">
-        <div className="w-80 flex-shrink-0 space-y-4">
+      <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+        <div className="w-full sm:w-80 sm:flex-shrink-0 space-y-4">
           <FilterPanel
             startDate={startDate}
             endDate={endDate}
