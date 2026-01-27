@@ -53,7 +53,11 @@ export async function POST(
       if (newId) {
         const fullRelease = await getReleaseById(newId)
         if (fullRelease) {
-          newReleases.push(fullRelease)
+          // Normalize date to YYYY-MM-DD string to avoid timezone issues
+          const dateStr = fullRelease.date instanceof Date
+            ? fullRelease.date.toISOString().split('T')[0]
+            : fullRelease.date
+          newReleases.push({ ...fullRelease, date: dateStr })
         }
       }
     }
@@ -65,7 +69,10 @@ export async function POST(
     if (newReleases.length > 0) {
       console.log(`  Extracted releases:`)
       for (const r of newReleases) {
-        console.log(`    • ${r.date}: ${r.title}`)
+        const ts = r.message_timestamp instanceof Date
+          ? r.message_timestamp.toISOString().replace('T', ' ').slice(0, 16)
+          : r.message_timestamp
+        console.log(`    • ${ts}: ${r.title}`)
       }
     }
 
