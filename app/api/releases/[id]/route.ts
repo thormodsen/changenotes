@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { updateRelease } from '@/lib/db/client'
+import { updateRelease, deleteReleaseById } from '@/lib/db/client'
 
 export async function PATCH(
   request: NextRequest,
@@ -30,6 +30,26 @@ export async function PATCH(
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error('Update error:', err)
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const success = await deleteReleaseById(id)
+
+    if (!success) {
+      return NextResponse.json({ error: 'Failed to delete release' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('Delete error:', err)
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ error: message }, { status: 500 })
   }

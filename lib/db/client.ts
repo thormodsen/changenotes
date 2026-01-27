@@ -334,6 +334,17 @@ export async function deleteReleasesForMessage(messageId: string): Promise<numbe
   return result.rowCount ?? 0
 }
 
+// Delete a single release by ID
+export async function deleteReleaseById(id: string): Promise<boolean> {
+  try {
+    const result = await sql`DELETE FROM releases WHERE id = ${id}`
+    return (result.rowCount ?? 0) > 0
+  } catch (err) {
+    console.error('Failed to delete release:', err)
+    return false
+  }
+}
+
 export async function getReleases(options?: {
   startDate?: string
   endDate?: string

@@ -431,6 +431,23 @@ export default function Home() {
     }
   }
 
+  const deleteRelease = async (id: string, title: string) => {
+    if (!confirm(`Delete "${title}"?`)) return
+
+    try {
+      const res = await fetch(`/api/releases/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to delete')
+      }
+      setReleases(prev => prev.filter(r => r.id !== id))
+      setReleasesTotal(prev => prev - 1)
+      setMessage('Release deleted')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete')
+    }
+  }
+
   const generateMarketing = async (releaseId: string) => {
     setGeneratingMarketing(releaseId)
     setError(null)
@@ -1035,6 +1052,12 @@ export default function Home() {
                                         className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
                                       >
                                         Edit
+                                      </button>
+                                      <button
+                                        onClick={() => deleteRelease(release.id, release.title)}
+                                        className="px-3 py-1 bg-red-100 text-red-700 rounded text-xs font-medium hover:bg-red-200"
+                                      >
+                                        Delete
                                       </button>
                                       <div className="relative">
                                         <button
