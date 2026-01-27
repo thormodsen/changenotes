@@ -335,12 +335,14 @@ export default function Home() {
       if (!res.ok) throw new Error(data.error)
 
       const parts = []
-      if (data.fetched > 0) parts.push(`Fetched ${data.fetched} messages from Slack`)
-      if (data.extracted > 0) parts.push(`Extracted ${data.extracted} releases`)
-      if (data.edited > 0) parts.push(`Re-extracted ${data.edited} edited messages`)
-      if (data.skipped > 0) parts.push(`Skipped ${data.skipped} non-release messages`)
+      parts.push(`Fetched ${data.fetched} messages`)
+      if (data.alreadyExtracted > 0) parts.push(`${data.alreadyExtracted} already extracted`)
+      if (data.newMessages > 0) parts.push(`${data.newMessages} new`)
+      if (data.extracted > 0) parts.push(`created ${data.extracted} releases`)
+      if (data.skipped > 0) parts.push(`skipped ${data.skipped} non-releases`)
+      if (data.edited > 0) parts.push(`re-extracted ${data.edited} edited`)
 
-      setMessage(parts.join('. ') + ` (prompt v${data.promptVersion})`)
+      setMessage(parts.join(' · ') + ` (v${data.promptVersion})`)
       await fetchReleases()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Extraction failed')

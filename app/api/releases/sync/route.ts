@@ -74,12 +74,15 @@ export async function POST(request: NextRequest) {
       `Processing ${messagesToProcess.length} messages (${editedMessageIds.length} edited)`
     )
 
+    const alreadyExtracted = allMessages.length - messagesToProcess.length
+
     // Extract releases
     if (messagesToProcess.length === 0) {
       return NextResponse.json({
         success: true,
         fetched: allMessages.length,
-        processed: 0,
+        alreadyExtracted,
+        newMessages: 0,
         extracted: 0,
         skipped: 0,
         edited: 0,
@@ -102,7 +105,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       fetched: allMessages.length,
-      processed: messagesToProcess.length,
+      alreadyExtracted,
+      newMessages: messagesToProcess.length,
       extracted: inserted,
       skipped: skippedIds.length,
       edited: editedMessageIds.length,
