@@ -74,7 +74,7 @@ export async function initializeSchema(): Promise<void> {
       impact TEXT,
       prompt_version TEXT,
       extracted_at TIMESTAMPTZ DEFAULT NOW(),
-      published BOOLEAN DEFAULT FALSE,
+      published BOOLEAN DEFAULT TRUE,
       published_at TIMESTAMPTZ,
       -- Slack metadata
       message_timestamp TIMESTAMPTZ NOT NULL,
@@ -222,6 +222,9 @@ export async function initializeSchema(): Promise<void> {
       END IF;
     END $$;
   `
+
+  // Migration: Change published default to TRUE for existing tables
+  await sql`ALTER TABLE releases ALTER COLUMN published SET DEFAULT TRUE`
 
   // Create indexes
   await sql`CREATE INDEX IF NOT EXISTS idx_releases_message ON releases(message_id)`
