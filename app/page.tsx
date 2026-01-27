@@ -117,6 +117,7 @@ export default function Home() {
               loading={loading || syncing}
               onUpdate={updateRelease}
               onDelete={removeRelease}
+              onRefresh={fetchReleases}
               onLoadMore={loadMore}
               onError={setError}
               onMessage={setMessage}

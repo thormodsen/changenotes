@@ -11,6 +11,7 @@ interface ReleaseListProps {
   loading: boolean
   onUpdate: (id: string, updates: Partial<Release>) => void
   onDelete: (id: string) => void
+  onRefresh: () => void
   onLoadMore: () => void
   onError: (message: string) => void
   onMessage: (message: string) => void
@@ -35,6 +36,7 @@ export function ReleaseList({
   loading,
   onUpdate,
   onDelete,
+  onRefresh,
   onLoadMore,
   onError,
   onMessage,
@@ -98,6 +100,7 @@ export function ReleaseList({
                   workspace={workspace}
                   onUpdate={onUpdate}
                   onDelete={onDelete}
+                  onRefresh={onRefresh}
                   onError={onError}
                   onMessage={onMessage}
                 />

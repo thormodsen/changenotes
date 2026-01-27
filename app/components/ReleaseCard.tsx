@@ -10,6 +10,7 @@ interface ReleaseCardProps {
   workspace: string
   onUpdate: (id: string, updates: Partial<Release>) => void
   onDelete: (id: string) => void
+  onRefresh: () => void
   onError: (message: string) => void
   onMessage: (message: string) => void
 }
@@ -30,6 +31,7 @@ export function ReleaseCard({
   workspace,
   onUpdate,
   onDelete,
+  onRefresh,
   onError,
   onMessage,
 }: ReleaseCardProps) {
@@ -158,6 +160,7 @@ export function ReleaseCard({
       onMessage(
         `Re-extracted: ${data.messagesRead} messages → ${data.extracted} releases (${data.messagesSkipped} skipped)`
       )
+      onRefresh()
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Failed to re-extract')
     } finally {
