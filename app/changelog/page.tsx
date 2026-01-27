@@ -57,8 +57,9 @@ export default function ChangelogPage() {
       offset: offset.toString(),
     })
     const res = await fetch(`/api/releases?${params}`)
-    const data = await res.json()
-    return data
+    const json = await res.json()
+    if (!json.success) return { releases: [], total: 0 }
+    return json.data
   }, [])
 
   useEffect(() => {
