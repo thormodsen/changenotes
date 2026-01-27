@@ -448,6 +448,33 @@ export default function Home() {
     }
   }
 
+  const [reextracting, setReextracting] = useState<string | null>(null)
+
+  const reextractRelease = async (id: string) => {
+    if (!confirm('Re-extract this release and its thread? This will delete and re-process all releases from the same Slack thread.')) return
+
+    setReextracting(id)
+    setError(null)
+    setMessage(null)
+
+    try {
+      const res = await fetch(`/api/releases/${id}/reextract`, { method: 'POST' })
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to re-extract')
+      }
+
+      setMessage(`Re-extracted: ${data.deleted} deleted, ${data.extracted} extracted`)
+      // Refresh the list
+      fetchReleases()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to re-extract')
+    } finally {
+      setReextracting(null)
+    }
+  }
+
   const generateMarketing = async (releaseId: string) => {
     setGeneratingMarketing(releaseId)
     setError(null)
@@ -1071,6 +1098,16 @@ export default function Home() {
                                         </button>
                                         {menuOpenId === release.id && (
                                           <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[160px]">
+                                            <button
+                                              onClick={() => {
+                                                setMenuOpenId(null)
+                                                reextractRelease(release.id)
+                                              }}
+                                              disabled={reextracting !== null}
+                                              className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                                            >
+                                              {reextracting === release.id ? '↻ Re-extracting...' : '↻ Re-extract'}
+                                            </button>
                                             {release.marketing_title && (
                                               <button
                                                 onClick={() => {
