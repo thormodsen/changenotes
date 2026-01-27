@@ -21,7 +21,7 @@ const typeConfig: Record<string, { icon: typeof Sparkles; label: string; color: 
   'New Feature': { icon: Rocket, label: 'NEW FEATURE', color: '#D4FF00' },
   'Improvement': { icon: Zap, label: 'IMPROVEMENT', color: '#7DE2D1' },
   'Bug Fix': { icon: CheckCircle, label: 'BUG FIX', color: '#FFB6C1' },
-  'Update': { icon: Sparkles, label: 'UPDATE', color: '#A8E6CF' },
+  'Update': { icon: Sparkles, label: 'UPDATE', color: '#D4FF00' },
   'Deprecation': { icon: Star, label: 'DEPRECATION', color: '#FFD93D' },
   'Rollback': { icon: PartyPopper, label: 'ROLLBACK', color: '#FF6B9D' },
 }
