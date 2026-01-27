@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { getReleases, initializeSchema } from '@/lib/db/client'
+import { apiSuccess, apiServerError } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,13 +22,10 @@ export async function GET(request: NextRequest) {
         : undefined,
     })
 
-    // Include workspace for Slack permalink generation
     const workspace = process.env.SLACK_WORKSPACE || ''
 
-    return NextResponse.json({ releases, total, workspace })
+    return apiSuccess({ releases, total, workspace })
   } catch (err) {
-    console.error('Failed to get releases:', err)
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return apiServerError(err)
   }
 }

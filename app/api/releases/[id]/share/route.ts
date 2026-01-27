@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { setReleaseShared } from '@/lib/db/client'
+import { apiSuccess, apiError, apiServerError } from '@/lib/api-response'
 
 export async function POST(
   request: NextRequest,
@@ -12,13 +13,11 @@ export async function POST(
     const success = await setReleaseShared(id, shared)
 
     if (!success) {
-      return NextResponse.json({ error: 'Failed to update share status' }, { status: 500 })
+      return apiError('Failed to update share status', 500)
     }
 
-    return NextResponse.json({ success: true, shared })
+    return apiSuccess({ shared })
   } catch (err) {
-    console.error('Share toggle error:', err)
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return apiServerError(err)
   }
 }

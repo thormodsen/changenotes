@@ -1,3 +1,8 @@
+export interface ParseResult<T> {
+  data: T
+  error: string | null
+}
+
 export function stripMarkdownCodeBlock(text: string): string {
   let result = text.trim()
   if (result.startsWith('```')) {
@@ -9,13 +14,10 @@ export function stripMarkdownCodeBlock(text: string): string {
   return result
 }
 
-// Extract JSON array from text that may contain preamble/explanation
 function extractJsonArray(text: string): string | null {
-  // Try to find a JSON array anywhere in the text
   const arrayStart = text.indexOf('[')
   if (arrayStart === -1) return null
 
-  // Find matching closing bracket
   let depth = 0
   for (let i = arrayStart; i < text.length; i++) {
     if (text[i] === '[') depth++
@@ -29,7 +31,7 @@ function extractJsonArray(text: string): string | null {
   return null
 }
 
-export function parseJsonArray<T>(textContent: string, context: string): T[] {
+export function parseJsonArray<T>(textContent: string, context: string): ParseResult<T[]> {
   const jsonText = stripMarkdownCodeBlock(textContent)
 
   const tryParse = (text: string): T[] | null => {
@@ -37,7 +39,6 @@ export function parseJsonArray<T>(textContent: string, context: string): T[] {
       const parsed = JSON.parse(text) as T[]
       return Array.isArray(parsed) ? parsed : null
     } catch {
-      // Try fixing trailing commas
       try {
         const fixed = text.replace(/,(\s*[}\]])/g, '$1')
         const parsed = JSON.parse(fixed) as T[]
@@ -48,42 +49,52 @@ export function parseJsonArray<T>(textContent: string, context: string): T[] {
     }
   }
 
-  // Try parsing the whole text first
   const result = tryParse(jsonText)
-  if (result) return result
+  if (result) {
+    return { data: result, error: null }
+  }
 
-  // Try extracting JSON array from text with preamble
   const extracted = extractJsonArray(jsonText)
   if (extracted) {
     const extractedResult = tryParse(extracted)
-    if (extractedResult) return extractedResult
+    if (extractedResult) {
+      return { data: extractedResult, error: null }
+    }
   }
 
-  console.error(`Failed to parse ${context} JSON:`, jsonText.substring(0, 200))
-  return []
+  const preview = jsonText.substring(0, 200)
+  const errorMsg = `Failed to parse ${context} JSON: ${preview}${jsonText.length > 200 ? '...' : ''}`
+  console.error(errorMsg)
+
+  return { data: [], error: errorMsg }
 }
 
 export function parseJsonObject<T>(
   textContent: string,
   context: string,
   validate?: (obj: T) => boolean
-): T | null {
+): ParseResult<T | null> {
   const jsonText = stripMarkdownCodeBlock(textContent)
 
   try {
     const parsed = JSON.parse(jsonText) as T
-    if (validate && !validate(parsed)) return null
-    return parsed
+    if (validate && !validate(parsed)) {
+      return { data: null, error: `${context} validation failed` }
+    }
+    return { data: parsed, error: null }
   } catch {
-    // Try fixing trailing commas (common LLM output issue)
     try {
       const fixed = jsonText.replace(/,(\s*[}\]])/g, '$1')
       const parsed = JSON.parse(fixed) as T
-      if (validate && !validate(parsed)) return null
-      return parsed
-    } catch {
-      console.error(`Failed to parse ${context} JSON:`, jsonText.substring(0, 200))
-      return null
+      if (validate && !validate(parsed)) {
+        return { data: null, error: `${context} validation failed` }
+      }
+      return { data: parsed, error: null }
+    } catch (err) {
+      const preview = jsonText.substring(0, 200)
+      const errorMsg = `Failed to parse ${context} JSON: ${preview}${jsonText.length > 200 ? '...' : ''}`
+      console.error(errorMsg)
+      return { data: null, error: errorMsg }
     }
   }
 }

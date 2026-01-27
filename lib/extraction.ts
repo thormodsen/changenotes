@@ -129,7 +129,11 @@ ${messagesText}`
       return new Set(messages.map((m) => m.ts))
     }
 
-    const releaseIds = parseJsonArray<string>(textContent, 'classification')
+    const { data: releaseIds, error } = parseJsonArray<string>(textContent, 'classification')
+    if (error) {
+      console.warn('Classification parse failed, processing all messages:', error)
+      return new Set(messages.map((m) => m.ts))
+    }
     return new Set(releaseIds)
   } catch (err) {
     console.error('Classification error:', err)
@@ -245,7 +249,11 @@ export async function extractReleasesFromMessages(
           continue
         }
 
-        const llmReleases = parseJsonArray<ExtractedReleaseLLM>(textContent, 'releases')
+        const { data: llmReleases, error: parseError } = parseJsonArray<ExtractedReleaseLLM>(textContent, 'releases')
+        if (parseError) {
+          errors.push(`Message ${msg.ts}: ${parseError}`)
+          continue
+        }
         const messageTimestamp = new Date(parseFloat(msg.ts) * 1000)
         const messageDate = messageTimestamp.toISOString().split('T')[0]
         const media = extractMediaFromMessage(msg)

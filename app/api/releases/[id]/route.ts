@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { updateRelease, deleteReleaseById, getReleaseById } from '@/lib/db/client'
+import { apiSuccess, apiError, apiServerError } from '@/lib/api-response'
 
 export async function PATCH(
   request: NextRequest,
@@ -8,7 +9,18 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
-    const { title, description, type, whyThisMatters, impact, marketingTitle, marketingDescription, marketingWhyThisMatters, includeMedia, featuredImageUrl } = body
+    const {
+      title,
+      description,
+      type,
+      whyThisMatters,
+      impact,
+      marketingTitle,
+      marketingDescription,
+      marketingWhyThisMatters,
+      includeMedia,
+      featuredImageUrl,
+    } = body
 
     const success = await updateRelease(id, {
       title,
@@ -24,14 +36,12 @@ export async function PATCH(
     })
 
     if (!success) {
-      return NextResponse.json({ error: 'Failed to update release' }, { status: 500 })
+      return apiError('Failed to update release', 500)
     }
 
-    return NextResponse.json({ success: true })
+    return apiSuccess({ updated: true })
   } catch (err) {
-    console.error('Update error:', err)
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return apiServerError(err)
   }
 }
 
@@ -42,25 +52,19 @@ export async function DELETE(
   try {
     const { id } = await params
 
-    // Get release details before deleting for logging
     const release = await getReleaseById(id)
-
     const success = await deleteReleaseById(id)
 
     if (!success) {
-      return NextResponse.json({ error: 'Failed to delete release' }, { status: 500 })
+      return apiError('Failed to delete release', 500)
     }
 
-    // Log deleted release
     if (release) {
-      console.log(`Deleted release:`)
-      console.log(`  • ${release.date}: ${release.title}`)
+      console.log(`Deleted release: ${release.date}: ${release.title}`)
     }
 
-    return NextResponse.json({ success: true })
+    return apiSuccess({ deleted: true })
   } catch (err) {
-    console.error('Delete error:', err)
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return apiServerError(err)
   }
 }

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import {
   initializeSchema,
   getExistingReleaseMessageIds,
@@ -8,6 +8,18 @@ import {
 import { loadSlackConfig } from '@/lib/config'
 import { fetchSlackMessages, type SlackApiMessage } from '@/lib/slack'
 import { extractReleasesFromMessages } from '@/lib/extraction'
+import { apiSuccess, apiServerError } from '@/lib/api-response'
+
+interface SyncResult {
+  fetched: number
+  alreadyExtracted: number
+  newMessages: number
+  extracted: number
+  skipped: number
+  edited: number
+  promptVersion: string
+  errors?: string[]
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +32,6 @@ export async function POST(request: NextRequest) {
 
     await initializeSchema()
 
-    // Calculate time window
     let oldest: number | undefined
     let latest: number | undefined
 
@@ -33,18 +44,14 @@ export async function POST(request: NextRequest) {
       const daysNum = parseInt(days, 10)
       oldest = Date.now() - daysNum * 24 * 60 * 60 * 1000
     } else {
-      // Default: last 7 days
       oldest = Date.now() - 7 * 24 * 60 * 60 * 1000
     }
 
-    // Fetch messages from Slack
     const allMessages = await fetchSlackMessages({ oldest, latest })
     console.log(`Fetched ${allMessages.length} messages from Slack`)
 
-    // Get existing releases to check for edits
     let existingReleases = await getExistingReleaseMessageIds(slackConfig.channelId)
 
-    // Find edited messages and delete their releases (plus entire thread)
     const editedMessageIds: string[] = []
     for (const msg of allMessages) {
       const existingEditedTs = existingReleases.get(msg.ts)
@@ -57,12 +64,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Re-fetch existing releases after deletions (thread members are now "new")
     if (editedMessageIds.length > 0) {
       existingReleases = await getExistingReleaseMessageIds(slackConfig.channelId)
     }
 
-    // Find all messages that need processing (new or had releases deleted)
     const messagesToProcess: SlackApiMessage[] = []
     for (const msg of allMessages) {
       if (!existingReleases.has(msg.ts)) {
@@ -76,10 +81,8 @@ export async function POST(request: NextRequest) {
 
     const alreadyExtracted = allMessages.length - messagesToProcess.length
 
-    // Extract releases
     if (messagesToProcess.length === 0) {
-      return NextResponse.json({
-        success: true,
+      return apiSuccess<SyncResult>({
         fetched: allMessages.length,
         alreadyExtracted,
         newMessages: 0,
@@ -95,15 +98,13 @@ export async function POST(request: NextRequest) {
       slackConfig.channelId
     )
 
-    // Insert extracted releases
     let inserted = 0
     for (const release of releases) {
       const id = await insertRelease(release)
       if (id) inserted++
     }
 
-    return NextResponse.json({
-      success: true,
+    return apiSuccess<SyncResult>({
       fetched: allMessages.length,
       alreadyExtracted,
       newMessages: messagesToProcess.length,
@@ -114,10 +115,8 @@ export async function POST(request: NextRequest) {
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (err) {
-    console.error('Sync error:', err)
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return apiServerError(err)
   }
 }
 
-export const maxDuration = 300 // 5 minutes for large syncs
+export const maxDuration = 300

@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { getReleaseById, updateReleaseMarketing, getLinkedReleases } from '@/lib/db/client'
 import { loadOpenRouterConfig, loadLangfuseConfig } from '@/lib/config'
 import { fetchPrompt } from '@/lib/langfuse'
 import { parseJsonObject } from '@/lib/json'
+import { apiSuccess, apiNotFound, apiError, apiServerError } from '@/lib/api-response'
 
 interface MarketingContent {
   title: string
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const release = await getReleaseById(id)
 
     if (!release) {
-      return NextResponse.json({ error: 'Release not found' }, { status: 404 })
+      return apiNotFound('Release not found')
     }
 
     const openRouterConfig = loadOpenRouterConfig()
@@ -29,7 +30,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const { prompt } = langfuseResult
 
-    // Fetch thread context if this release is part of a thread
     const linked = await getLinkedReleases(id)
 
     let threadContext = ''
@@ -88,36 +88,34 @@ Why This Matters: ${release.why_this_matters || 'N/A'}
     if (!res.ok) {
       const errorText = await res.text()
       console.error('OpenRouter error:', errorText)
-      return NextResponse.json({ error: `API error: ${res.status}` }, { status: 500 })
+      return apiError(`API error: ${res.status}`, 500)
     }
 
     const data = await res.json()
     const textContent = data.choices?.[0]?.message?.content
 
     if (!textContent) {
-      return NextResponse.json({ error: 'No content in response' }, { status: 500 })
+      return apiError('No content in response', 500)
     }
 
-    const marketing = parseJsonObject<MarketingContent>(
+    const { data: marketing, error: parseError } = parseJsonObject<MarketingContent>(
       textContent,
       'marketing',
       (obj) => Boolean(obj.title && obj.description && obj.whyThisMatters)
     )
 
-    if (!marketing) {
-      return NextResponse.json({ error: 'Failed to parse marketing content' }, { status: 500 })
+    if (parseError || !marketing) {
+      return apiError(parseError || 'Failed to parse marketing content', 500)
     }
 
     const updated = await updateReleaseMarketing(id, marketing)
 
     if (!updated) {
-      return NextResponse.json({ error: 'Failed to save marketing content' }, { status: 500 })
+      return apiError('Failed to save marketing content', 500)
     }
 
-    return NextResponse.json({ success: true, marketing })
+    return apiSuccess({ marketing })
   } catch (err) {
-    console.error('Failed to generate marketing:', err)
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return apiServerError(err)
   }
 }
