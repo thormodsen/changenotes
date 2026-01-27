@@ -974,7 +974,16 @@ ${releaseList ? `\nExtracted releases:\n${releaseList}` : ''}`
                                       </div>
                                     ) : (
                                       <>
-                                        <h4 className="font-medium text-gray-900">{release.title}</h4>
+                                        <h4 className="font-medium text-gray-900">
+                                          <a
+                                            href={`/changelog/${release.id}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="hover:text-blue-600 hover:underline"
+                                          >
+                                            {release.title}
+                                          </a>
+                                        </h4>
                                         {release.description && (
                                           <p className="text-sm text-gray-600 mt-1">{release.description}</p>
                                         )}
