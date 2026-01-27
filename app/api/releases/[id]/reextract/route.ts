@@ -52,6 +52,18 @@ export async function POST(
       }
     }
 
+    // Log summary to server
+    console.log(`Re-extract complete:`)
+    console.log(`  Messages read: ${filteredMessages.length}`)
+    console.log(`  Messages skipped: ${skippedIds.length}`)
+    console.log(`  Releases extracted: ${extractedReleases.length}`)
+    if (extractedReleases.length > 0) {
+      console.log(`  Extracted releases:`)
+      for (const r of extractedReleases) {
+        console.log(`    • ${r.date}: ${r.title}`)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       deleted,
