@@ -38,22 +38,27 @@ export async function POST(
     )
 
     // Extract releases
-    const { releases, promptVersion, errors } = await extractReleasesFromMessages(
+    const { releases, promptVersion, skippedIds, errors } = await extractReleasesFromMessages(
       filteredMessages,
       slackConfig.channelId
     )
 
-    // Insert extracted releases
-    let inserted = 0
+    // Insert extracted releases and collect details
+    const extractedReleases: { title: string; date: string }[] = []
     for (const rel of releases) {
       const newId = await insertRelease(rel)
-      if (newId) inserted++
+      if (newId) {
+        extractedReleases.push({ title: rel.title, date: rel.date })
+      }
     }
 
     return NextResponse.json({
       success: true,
       deleted,
-      extracted: inserted,
+      messagesRead: filteredMessages.length,
+      messagesSkipped: skippedIds.length,
+      extracted: extractedReleases.length,
+      extractedReleases,
       promptVersion,
       errors: errors.length > 0 ? errors : undefined,
     })

@@ -465,7 +465,18 @@ export default function Home() {
         throw new Error(data.error || 'Failed to re-extract')
       }
 
-      setMessage(`Re-extracted: ${data.deleted} deleted, ${data.extracted} extracted`)
+      const releaseList = data.extractedReleases
+        ?.map((r: { title: string; date: string }) => `• ${r.date}: ${r.title}`)
+        .join('\n') || ''
+
+      const summary = `Re-extract complete:
+- Messages read: ${data.messagesRead}
+- Messages skipped: ${data.messagesSkipped}
+- Releases extracted: ${data.extracted}
+${releaseList ? `\nExtracted releases:\n${releaseList}` : ''}`
+
+      console.log(summary)
+      setMessage(`Re-extracted: ${data.messagesRead} messages → ${data.extracted} releases (${data.messagesSkipped} skipped)`)
       // Refresh the list
       fetchReleases()
     } catch (err) {
