@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { updateRelease, deleteReleaseById } from '@/lib/db/client'
+import { updateRelease, deleteReleaseById, getReleaseById } from '@/lib/db/client'
 
 export async function PATCH(
   request: NextRequest,
@@ -41,10 +41,20 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
+
+    // Get release details before deleting for logging
+    const release = await getReleaseById(id)
+
     const success = await deleteReleaseById(id)
 
     if (!success) {
       return NextResponse.json({ error: 'Failed to delete release' }, { status: 500 })
+    }
+
+    // Log deleted release
+    if (release) {
+      console.log(`Deleted release:`)
+      console.log(`  • ${release.date}: ${release.title}`)
     }
 
     return NextResponse.json({ success: true })
