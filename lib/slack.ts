@@ -85,7 +85,13 @@ export async function fetchSlackMessages(options: {
     cursor = data.response_metadata?.next_cursor
   } while (cursor)
 
-  return messages
+  // Deduplicate by ts (replies broadcast to channel appear in both history and thread)
+  const seen = new Set<string>()
+  return messages.filter(msg => {
+    if (seen.has(msg.ts)) return false
+    seen.add(msg.ts)
+    return true
+  })
 }
 
 export async function fetchThreadReplies(threadTs: string): Promise<SlackApiMessage[]> {

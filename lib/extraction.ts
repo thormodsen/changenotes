@@ -216,8 +216,10 @@ export async function extractReleasesFromMessages(
         if (isThreadReply) {
           const parentFormatted = formatMessage(parentMessage)
           userContent = `${prompt}\n\nThread parent message (for context):\n${parentFormatted}\n\nThread reply to analyze:\n\n${formattedMessage}`
+          console.log(`  Extracting thread reply ${msg.ts} WITH parent context`)
         } else {
           userContent = `${prompt}\n\nMessage to analyze:\n\n${formattedMessage}`
+          console.log(`  Extracting message ${msg.ts} ${msg.thread_ts ? 'WITHOUT parent context (parent not found)' : '(standalone)'}`)
         }
 
         const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
