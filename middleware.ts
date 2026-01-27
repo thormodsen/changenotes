@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { validateSession, validateApiKey } from '@/lib/auth'
 
 const SESSION_NAME = 'changelog_session'
 
@@ -10,12 +11,40 @@ const publicRoutes = [
   '/api/auth',
 ]
 
+// API routes that allow public read access (for public changelog page)
+const publicApiRoutes = [
+  { path: '/api/releases', methods: ['GET'] },
+]
+
 function isPublicRoute(pathname: string): boolean {
   return publicRoutes.some(route => pathname.startsWith(route))
 }
 
+function isPublicApiRoute(pathname: string, method: string): boolean {
+  return publicApiRoutes.some(
+    route => pathname.startsWith(route.path) && route.methods.includes(method)
+  )
+}
+
+function isAuthenticated(request: NextRequest): boolean {
+  // Check session cookie
+  const session = request.cookies.get(SESSION_NAME)
+  if (session?.value && validateSession(session.value)) {
+    return true
+  }
+
+  // Check API key header
+  const apiKey = request.headers.get('x-api-key')
+  if (apiKey && validateApiKey(apiKey)) {
+    return true
+  }
+
+  return false
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const method = request.method
 
   // Allow public routes
   if (isPublicRoute(pathname)) {
@@ -31,11 +60,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Check for session cookie
-  const session = request.cookies.get(SESSION_NAME)
+  // Allow public API routes (e.g., GET /api/releases for changelog)
+  if (pathname.startsWith('/api') && isPublicApiRoute(pathname, method)) {
+    return NextResponse.next()
+  }
 
-  if (!session?.value) {
-    // Redirect to login for pages, return 401 for API
+  // Check authentication
+  if (!isAuthenticated(request)) {
     if (pathname.startsWith('/api')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

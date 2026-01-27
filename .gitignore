@@ -40,3 +40,4 @@ npm-debug.log*
 # LLM debug dumps
 llm-input-*.txt
 .env*.local
+tsconfig.tsbuildinfo
