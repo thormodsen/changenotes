@@ -85,11 +85,6 @@ async function classifyMessages(
 ): Promise<Set<string>> {
   if (messages.length === 0) return new Set()
 
-  // For single messages or very few, assume they're all releases
-  if (messages.length <= 2) {
-    return new Set(messages.map((m) => m.ts))
-  }
-
   const messagesText = messages
     .map((msg) => {
       const timestamp = new Date(parseFloat(msg.ts) * 1000)
