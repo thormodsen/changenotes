@@ -451,8 +451,6 @@ export default function Home() {
   const [reextracting, setReextracting] = useState<Set<string>>(new Set())
 
   const reextractRelease = async (id: string) => {
-    if (!confirm('Re-extract this release and its thread? This will delete and re-process all releases from the same Slack thread.')) return
-
     setReextracting(prev => new Set(prev).add(id))
     setError(null)
 
