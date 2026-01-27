@@ -6,6 +6,8 @@ export interface SlackApiMessage {
   text?: string
   user?: string
   username?: string
+  bot_id?: string
+  subtype?: string
   thread_ts?: string
   reply_count?: number
   edited?: {
@@ -60,13 +62,21 @@ export async function fetchSlackMessages(options: {
     if (!data.ok) throw new Error(`Slack API error: ${data.error}`)
 
     for (const msg of (data.messages || []) as SlackApiMessage[]) {
+      // Skip messages from excluded bots
+      if (msg.bot_id && config.excludeBotIds.includes(msg.bot_id)) {
+        continue
+      }
+
       messages.push(msg)
 
       // If this message has replies, fetch them too
       if (msg.thread_ts === msg.ts && msg.reply_count && msg.reply_count > 0) {
         const threadMessages = await fetchThreadReplies(msg.ts)
-        // Add replies (skip the parent which we already have)
+        // Add replies (skip the parent which we already have, and excluded bots)
         for (const reply of threadMessages.slice(1)) {
+          if (reply.bot_id && config.excludeBotIds.includes(reply.bot_id)) {
+            continue
+          }
           messages.push(reply)
         }
       }

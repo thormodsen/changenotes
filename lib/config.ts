@@ -1,6 +1,7 @@
 export interface SlackConfig {
   token: string
   channelId: string
+  excludeBotIds: string[]
 }
 
 export interface OpenRouterConfig {
@@ -16,11 +17,14 @@ export interface LangfuseConfig {
 export function loadSlackConfig(): SlackConfig {
   const token = process.env.SLACK_TOKEN
   const channelId = process.env.SLACK_CHANNEL_ID
+  const excludeBotIds = process.env.SLACK_EXCLUDE_BOT_IDS
+    ? process.env.SLACK_EXCLUDE_BOT_IDS.split(',').map((id) => id.trim())
+    : []
 
   if (!token) throw new Error('SLACK_TOKEN is required')
   if (!channelId) throw new Error('SLACK_CHANNEL_ID is required')
 
-  return { token, channelId }
+  return { token, channelId, excludeBotIds }
 }
 
 export function loadOpenRouterConfig(): OpenRouterConfig {
