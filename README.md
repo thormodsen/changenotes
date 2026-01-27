@@ -1,45 +1,77 @@
-# slack-release-monitor
+# Changenotes
 
-CLI tool that monitors a Slack channel for release announcements, uses OpenRouter (Claude) to extract structured release info, and maintains a markdown changelog.
+A Next.js app that syncs release announcements from Slack, uses AI to extract structured release notes, and publishes a public changelog.
+
+## Features
+
+- **Slack Sync**: Fetches messages from a Slack channel, including thread replies
+- **AI Extraction**: Uses Claude (via OpenRouter) to classify and extract release information
+- **Prompt Management**: Prompts managed via Langfuse for easy iteration
+- **Admin UI**: Filter by date, publish/unpublish releases, edit content, re-extract
+- **Public Changelog**: Customer-facing changelog page at `/changelog`
+- **Share Cards**: Generate shareable release cards with marketing copy
+
+## Stack
+
+- Next.js 14 (App Router)
+- Vercel Postgres
+- OpenRouter (Claude)
+- Langfuse (prompt management)
+- Tailwind CSS
 
 ## Setup
 
-```bash
-npm install
-npm run build
-```
+1. Clone and install:
+   ```bash
+   npm install
+   ```
 
-Copy `.env.example` to `.env` and fill in:
-- `SLACK_TOKEN` - Bot token with `channels:history`, `channels:read` scopes
-- `OPENROUTER_API_KEY` - Your OpenRouter API key (get one at https://openrouter.ai)
-- `SLACK_WORKSPACE` - Your Slack workspace name (e.g., "myworkspace" for myworkspace.slack.com)
-- `SLACK_CHANNEL_ID` - Channel to monitor
+2. Copy `.env.example` to `.env` and configure:
+   ```
+   # Slack
+   SLACK_TOKEN=xoxb-...
+   SLACK_CHANNEL_ID=C...
+   SLACK_WORKSPACE=yourworkspace
+
+   # Database
+   POSTGRES_URL=postgresql://...
+
+   # AI
+   OPENROUTER_API_KEY=sk-or-...
+
+   # Prompts
+   LANGFUSE_PUBLIC_KEY=pk-...
+   LANGFUSE_SECRET_KEY=sk-...
+   LANGFUSE_HOST=https://cloud.langfuse.com
+   ```
+
+3. Set up Langfuse prompts:
+   - `release-classification`: Determines which messages are releases
+   - `release-extraction`: Extracts structured data from release messages
+
+4. Run locally:
+   ```bash
+   npm run dev
+   ```
 
 ## Usage
 
-```bash
-# Process last 7 days
-node dist/index.js --days 7
+1. **Sync**: Select date range and click "Sync & Extract"
+2. **Review**: Edit titles, descriptions, or re-extract individual releases
+3. **Publish**: Toggle publish status to show/hide on public changelog
+4. **Share**: Generate marketing copy and shareable cards
 
-# Process specific date range
-node dist/index.js --start 2025-12-01 --days 7
+## Routes
 
-# Generate weekly summary from existing releases.md
-node dist/index.js --weekly-summary
+- `/` - Admin dashboard (requires auth)
+- `/changelog` - Public changelog
+- `/changelog/[id]` - Individual release page
+- `/release/[id]` - Shareable release card
 
-# Debug mode
-node dist/index.js --days 7 --verbose
-```
+## Environment
 
-## How it works
-
-1. Fetches messages from the configured Slack channel
-2. Filters out already-processed messages (tracked in `.release-monitor-state.json`)
-3. Sends messages to OpenRouter (Claude) to extract release/deployment info
-4. Appends extracted releases to `releases.html`
-5. Updates state file to avoid reprocessing
-
-## Output
-
-- `releases.html` - Running log of extracted releases (HTML format)
-- `weekly-summary-YYYY-MM-DD.md` - Generated weekly digests (reads from `releases.md` if present)
+Requires:
+- Slack bot with `channels:history`, `channels:read` scopes
+- Vercel Postgres database
+- OpenRouter API key
+- Langfuse account for prompt management
