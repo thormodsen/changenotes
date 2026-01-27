@@ -31,9 +31,16 @@ function formatDate(date: string | Date, options?: Intl.DateTimeFormatOptions): 
 }
 
 function getDateKey(date: string | Date): string {
-  const dateObj = date instanceof Date ? date : new Date(date)
+  // Parse date as local time to match formatDate behavior
+  const dateObj = date instanceof Date
+    ? date
+    : new Date(typeof date === 'string' && !date.includes('T') ? date + 'T12:00:00' : date)
   if (isNaN(dateObj.getTime())) return 'unknown'
-  return dateObj.toISOString().split('T')[0]
+  // Format in local timezone
+  const year = dateObj.getFullYear()
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0')
+  const day = String(dateObj.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 const typeColors: Record<string, string> = {
