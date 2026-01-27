@@ -48,7 +48,7 @@ function extractMediaFromMessage(msg: SlackApiMessage): ReleaseMedia | null {
 interface ExtractedReleaseLLM {
   title: string
   description: string
-  type: 'New Feature' | 'Improvement' | 'Bug Fix' | 'Deprecation' | 'Rollback' | 'Update'
+  type?: string // Optional - defaults to "Release" if not provided
   whyThisMatters?: string
   impact?: string
 }
@@ -249,7 +249,7 @@ export async function extractReleasesFromMessages(
             date: messageDate,
             title: release.title,
             description: release.description,
-            type: release.type,
+            type: release.type || 'Release',
             whyThisMatters: release.whyThisMatters,
             impact: release.impact,
             promptVersion,
