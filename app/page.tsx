@@ -448,14 +448,13 @@ export default function Home() {
     }
   }
 
-  const [reextracting, setReextracting] = useState<string | null>(null)
+  const [reextracting, setReextracting] = useState<Set<string>>(new Set())
 
   const reextractRelease = async (id: string) => {
     if (!confirm('Re-extract this release and its thread? This will delete and re-process all releases from the same Slack thread.')) return
 
-    setReextracting(id)
+    setReextracting(prev => new Set(prev).add(id))
     setError(null)
-    setMessage(null)
 
     try {
       const res = await fetch(`/api/releases/${id}/reextract`, { method: 'POST' })
@@ -482,7 +481,11 @@ ${releaseList ? `\nExtracted releases:\n${releaseList}` : ''}`
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to re-extract')
     } finally {
-      setReextracting(null)
+      setReextracting(prev => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
     }
   }
 
@@ -1123,10 +1126,10 @@ ${releaseList ? `\nExtracted releases:\n${releaseList}` : ''}`
                                                 setMenuOpenId(null)
                                                 reextractRelease(release.id)
                                               }}
-                                              disabled={reextracting !== null}
+                                              disabled={reextracting.has(release.id)}
                                               className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
                                             >
-                                              {reextracting === release.id ? '↻ Re-extracting...' : '↻ Re-extract'}
+                                              {reextracting.has(release.id) ? '↻ Re-extracting...' : '↻ Re-extract'}
                                             </button>
                                             {release.marketing_title && (
                                               <button
