@@ -94,7 +94,8 @@ export default function ChangelogPage() {
   }
 
   const groupedReleases = releases.reduce<Record<string, Release[]>>((acc, release) => {
-    const key = getDateKey(release.date)
+    if (!release.message_timestamp) return acc
+    const key = getDateKey(release.message_timestamp)
     if (!acc[key]) acc[key] = []
     acc[key].push(release)
     return acc

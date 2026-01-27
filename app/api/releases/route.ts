@@ -22,9 +22,17 @@ export async function GET(request: NextRequest) {
         : undefined,
     })
 
+    // Normalize date to YYYY-MM-DD string to avoid timezone issues
+    const normalizedReleases = releases.map(r => ({
+      ...r,
+      date: typeof r.date === 'object' && r.date !== null
+        ? (r.date as Date).toISOString().split('T')[0]
+        : r.date,
+    }))
+
     const workspace = process.env.SLACK_WORKSPACE || ''
 
-    return apiSuccess({ releases, total, workspace })
+    return apiSuccess({ releases: normalizedReleases, total, workspace })
   } catch (err) {
     return apiServerError(err)
   }

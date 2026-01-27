@@ -17,14 +17,19 @@ interface ReleaseListProps {
   onMessage: (message: string) => void
 }
 
-function groupByDate(releases: Release[]): Record<string, Release[]> {
-  return releases.reduce<Record<string, Release[]>>((acc, release) => {
-    if (!release.date || release.date === 'null' || release.date === 'undefined') {
-      return acc
-    }
+function getDateKey(timestamp: Date | string): string {
+  const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp
+  if (isNaN(date.getTime())) return 'unknown'
+  return date.toLocaleDateString('en-CA') // YYYY-MM-DD format in local timezone
+}
 
-    if (!acc[release.date]) acc[release.date] = []
-    acc[release.date].push(release)
+function groupByTimestamp(releases: Release[]): Record<string, Release[]> {
+  return releases.reduce<Record<string, Release[]>>((acc, release) => {
+    if (!release.message_timestamp) return acc
+
+    const key = getDateKey(release.message_timestamp)
+    if (!acc[key]) acc[key] = []
+    acc[key].push(release)
     return acc
   }, {})
 }
@@ -74,7 +79,7 @@ export function ReleaseList({
     )
   }
 
-  const groupedReleases = groupByDate(releases)
+  const groupedReleases = groupByTimestamp(releases)
   const sortedDates = Object.keys(groupedReleases).sort((a, b) => b.localeCompare(a))
   const hasMore = releases.length < total
 
