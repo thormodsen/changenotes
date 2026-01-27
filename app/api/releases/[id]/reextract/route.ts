@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { getReleaseById, deleteReleasesForMessage, insertRelease } from '@/lib/db/client'
+import { getReleaseById, deleteReleasesForMessage, insertRelease, type Release } from '@/lib/db/client'
 import { loadSlackConfig } from '@/lib/config'
 import { fetchThreadReplies } from '@/lib/slack'
 import { extractReleasesFromMessages } from '@/lib/extraction'
@@ -10,7 +10,7 @@ interface ReextractResult {
   messagesRead: number
   messagesSkipped: number
   extracted: number
-  extractedReleases: { title: string; date: string }[]
+  newReleases: Release[]
   promptVersion: string
   errors?: string[]
 }
@@ -47,21 +47,24 @@ export async function POST(
       slackConfig.channelId
     )
 
-    const extractedReleases: { title: string; date: string }[] = []
+    const newReleases: Release[] = []
     for (const rel of releases) {
       const newId = await insertRelease(rel)
       if (newId) {
-        extractedReleases.push({ title: rel.title, date: rel.date })
+        const fullRelease = await getReleaseById(newId)
+        if (fullRelease) {
+          newReleases.push(fullRelease)
+        }
       }
     }
 
     console.log(`Re-extract complete:`)
     console.log(`  Messages read: ${filteredMessages.length}`)
     console.log(`  Messages skipped: ${skippedIds.length}`)
-    console.log(`  Releases extracted: ${extractedReleases.length}`)
-    if (extractedReleases.length > 0) {
+    console.log(`  Releases extracted: ${newReleases.length}`)
+    if (newReleases.length > 0) {
       console.log(`  Extracted releases:`)
-      for (const r of extractedReleases) {
+      for (const r of newReleases) {
         console.log(`    • ${r.date}: ${r.title}`)
       }
     }
@@ -70,8 +73,8 @@ export async function POST(
       deleted,
       messagesRead: filteredMessages.length,
       messagesSkipped: skippedIds.length,
-      extracted: extractedReleases.length,
-      extractedReleases,
+      extracted: newReleases.length,
+      newReleases,
       promptVersion,
       errors: errors.length > 0 ? errors : undefined,
     })

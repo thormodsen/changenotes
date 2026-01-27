@@ -15,6 +15,7 @@ interface UseReleasesReturn {
   loadMore: () => Promise<void>
   updateRelease: (id: string, updates: Partial<Release>) => void
   removeRelease: (id: string) => void
+  replaceRelease: (oldId: string, newReleases: Release[]) => void
   setError: (error: string | null) => void
   setMessage: (message: string | null) => void
   clearMessage: () => void
@@ -81,6 +82,15 @@ export function useReleases(startDate: string, endDate: string): UseReleasesRetu
     setTotal(prev => prev - 1)
   }, [])
 
+  const replaceRelease = useCallback((oldId: string, newReleases: Release[]) => {
+    setReleases(prev => {
+      const idx = prev.findIndex(r => r.id === oldId)
+      if (idx === -1) return [...newReleases, ...prev]
+      return [...prev.slice(0, idx), ...newReleases, ...prev.slice(idx + 1)]
+    })
+    setTotal(prev => prev - 1 + newReleases.length)
+  }, [])
+
   const clearMessage = useCallback(() => {
     setMessage(null)
   }, [])
@@ -96,6 +106,7 @@ export function useReleases(startDate: string, endDate: string): UseReleasesRetu
     loadMore,
     updateRelease,
     removeRelease,
+    replaceRelease,
     setError,
     setMessage,
     clearMessage,

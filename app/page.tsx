@@ -23,6 +23,7 @@ export default function Home() {
     loadMore,
     updateRelease,
     removeRelease,
+    replaceRelease,
     setError,
     setMessage,
   } = useReleases(startDate, endDate)
@@ -117,7 +118,7 @@ export default function Home() {
               loading={loading || syncing}
               onUpdate={updateRelease}
               onDelete={removeRelease}
-              onRefresh={fetchReleases}
+              onReextract={replaceRelease}
               onLoadMore={loadMore}
               onError={setError}
               onMessage={setMessage}
