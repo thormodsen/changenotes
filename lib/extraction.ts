@@ -199,6 +199,9 @@ export async function extractReleasesFromMessages(
       `Thread ${threadId}: ${releaseIds.size}/${threadMessages.length} messages identified as releases`
     )
 
+    // Find the parent message for thread context
+    const parentMessage = threadMessages.find((m) => m.ts === threadId)
+
     for (const msg of threadMessages) {
       if (!releaseIds.has(msg.ts)) {
         skippedIds.push(msg.ts)
@@ -207,7 +210,16 @@ export async function extractReleasesFromMessages(
 
       try {
         const formattedMessage = formatMessage(msg)
-        const userContent = `${prompt}\n\nMessage to analyze:\n\n${formattedMessage}`
+
+        // Include parent message context for thread replies
+        const isThreadReply = msg.thread_ts && msg.thread_ts !== msg.ts && parentMessage
+        let userContent: string
+        if (isThreadReply) {
+          const parentFormatted = formatMessage(parentMessage)
+          userContent = `${prompt}\n\nThread parent message (for context):\n${parentFormatted}\n\nThread reply to analyze:\n\n${formattedMessage}`
+        } else {
+          userContent = `${prompt}\n\nMessage to analyze:\n\n${formattedMessage}`
+        }
 
         const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
