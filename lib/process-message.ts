@@ -7,6 +7,7 @@ import {
 import { loadSlackConfig } from './config'
 import { fetchThreadReplies, type SlackApiMessage } from './slack'
 import { extractReleasesFromMessages, type ExtractedRelease } from './extraction'
+import { notifyNewReleases } from './slack-notify'
 
 interface ProcessResult {
   processed: boolean
@@ -82,6 +83,9 @@ export async function processSingleMessage(
     for (const release of messageReleases) {
       await insertRelease(release)
     }
+
+    // Notify about new releases
+    await notifyNewReleases(messageReleases)
 
     const reason = existingEditedTs !== undefined ? 'edited_reextracted' : 'extracted'
     return { processed: true, reason, releases: messageReleases }
