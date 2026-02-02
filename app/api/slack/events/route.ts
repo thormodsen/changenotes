@@ -86,35 +86,45 @@ function eventToMessage(event: SlackMessageEvent): SlackApiMessage {
  * Process the incoming message event asynchronously.
  */
 async function handleMessageEvent(event: SlackMessageEvent, channelId: string): Promise<void> {
+  console.log(`[Events] handleMessageEvent called for ${event.ts}`, {
+    text: event.text?.substring(0, 50),
+    user: event.user,
+    bot_id: event.bot_id,
+    thread_ts: event.thread_ts,
+  })
+
   const config = loadSlackConfig()
 
   // Skip messages from excluded bots
   if (event.bot_id && config.excludeBotIds.includes(event.bot_id)) {
-    console.log(`Skipping message from excluded bot: ${event.bot_id}`)
+    console.log(`[Events] Skipping message from excluded bot: ${event.bot_id}`)
     return
   }
 
   // Skip message subtypes we don't care about
   const ignoredSubtypes = ['channel_join', 'channel_leave', 'channel_topic', 'channel_purpose']
   if (event.subtype && ignoredSubtypes.includes(event.subtype)) {
-    console.log(`Skipping message with subtype: ${event.subtype}`)
+    console.log(`[Events] Skipping message with subtype: ${event.subtype}`)
     return
   }
 
+  console.log(`[Events] Processing message ${event.ts}...`)
   const message = eventToMessage(event)
   const result = await processSingleMessage(message, channelId)
 
-  console.log(`Processed message ${event.ts}: ${result.reason}`, {
+  console.log(`[Events] Processed message ${event.ts}: ${result.reason}`, {
     releases: result.releases?.length ?? 0,
     error: result.error,
   })
 }
 
 export async function POST(request: NextRequest) {
+  console.log('[Events] POST request received')
+
   const signingSecret = process.env.SLACK_SIGNING_SECRET
 
   if (!signingSecret) {
-    console.error('SLACK_SIGNING_SECRET not configured')
+    console.error('[Events] SLACK_SIGNING_SECRET not configured')
     return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
   }
 
@@ -131,26 +141,34 @@ export async function POST(request: NextRequest) {
 
   // Verify signature
   if (!verifySlackSignature(signingSecret, signature, timestamp, body)) {
-    console.warn('Invalid Slack signature')
+    console.warn('[Events] Invalid Slack signature')
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
+  console.log('[Events] Signature verified')
+
   const payload: SlackEvent = JSON.parse(body)
+  console.log('[Events] Payload type:', payload.type)
 
   // Handle URL verification challenge
   if (payload.type === 'url_verification') {
+    console.log('[Events] URL verification challenge')
     return NextResponse.json({ challenge: payload.challenge })
   }
 
   // Handle event callbacks
   if (payload.type === 'event_callback') {
     const { event } = payload
+    console.log('[Events] Event callback:', event.type, 'subtype:', event.subtype)
 
     // Only process messages from our configured channel
     const config = loadSlackConfig()
     const eventChannel = 'channel' in event ? event.channel : null
 
+    console.log(`[Events] Event channel: ${eventChannel}, configured: ${config.channelId}`)
+
     if (eventChannel !== config.channelId) {
+      console.log('[Events] Ignoring event from different channel')
       return NextResponse.json({ ok: true })
     }
 

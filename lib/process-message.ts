@@ -37,11 +37,18 @@ export async function processSingleMessage(
   message: SlackApiMessage,
   channelId: string
 ): Promise<ProcessResult> {
+  console.log(`[ProcessMessage] Starting for ${message.ts}`, {
+    text: message.text?.substring(0, 50),
+    channelId,
+  })
+
   try {
     await initializeSchema()
 
     const existingReleases = await getExistingReleaseMessageIds(channelId)
     const existingEditedTs = existingReleases.get(message.ts)
+
+    console.log(`[ProcessMessage] Existing release for ${message.ts}:`, existingEditedTs !== undefined)
 
     // Check if already processed
     if (existingEditedTs !== undefined) {
@@ -49,11 +56,12 @@ export async function processSingleMessage(
 
       // If not edited, skip
       if (currentEditedTs === existingEditedTs) {
+        console.log(`[ProcessMessage] Already processed, skipping ${message.ts}`)
         return { processed: false, reason: 'already_exists' }
       }
 
       // Message was edited - delete old releases and re-extract
-      console.log(`Message ${message.ts} was edited, re-extracting`)
+      console.log(`[ProcessMessage] Message ${message.ts} was edited, re-extracting`)
       await deleteReleasesForMessage(message.ts)
     }
 
@@ -70,21 +78,31 @@ export async function processSingleMessage(
     messagesToProcess.push(message)
 
     // Run through extraction pipeline
+    console.log(`[ProcessMessage] Extracting from ${messagesToProcess.length} messages`)
     const { releases, errors } = await extractReleasesFromMessages(messagesToProcess, channelId)
+
+    console.log(`[ProcessMessage] Extraction complete: ${releases.length} releases, ${errors.length} errors`)
+    if (errors.length > 0) {
+      console.log(`[ProcessMessage] Errors:`, errors)
+    }
 
     // Filter to only releases from this specific message (not the parent)
     const messageReleases = releases.filter((r) => r.messageId === message.ts)
+    console.log(`[ProcessMessage] Filtered to ${messageReleases.length} releases for message ${message.ts}`)
 
     if (messageReleases.length === 0) {
+      console.log(`[ProcessMessage] No releases found, marking as not_release`)
       return { processed: true, reason: 'not_release' }
     }
 
     // Insert releases
+    console.log(`[ProcessMessage] Inserting ${messageReleases.length} releases`)
     for (const release of messageReleases) {
       await insertRelease(release)
     }
 
     // Notify about new releases
+    console.log(`[ProcessMessage] Notifying about ${messageReleases.length} releases`)
     await notifyNewReleases(messageReleases)
 
     const reason = existingEditedTs !== undefined ? 'edited_reextracted' : 'extracted'
