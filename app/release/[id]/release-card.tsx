@@ -5,6 +5,8 @@ import './release-card.css'
 import { Newspaper, Star, CheckCircle, Zap, Rocket, PartyPopper } from 'lucide-react'
 import { LightBulbs, BackgroundReleaseCard } from '@/app/assets/icons'
 import { motion } from 'framer-motion'
+import React from 'react';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 interface ReleaseNote {
   id: string
@@ -21,11 +23,11 @@ interface ReleaseCardProps {
 
 const typeConfig: Record<string, { icon: typeof Newspaper; label: string; color: string }> = {
   'New Feature': { icon: Rocket, label: 'New Feature', color: '#CCFF00' },
-  'Improvement': { icon: Zap, label: 'Improvement', color: '#7DE2D1' },
-  'Bug Fix': { icon: CheckCircle, label: 'Bug Fix', color: '#FFB6C1' },
+  'Improvement': { icon: Zap, label: 'Improvement', color: '#708FFF' },
+  'Bug Fix': { icon: CheckCircle, label: 'Bug Fix', color: '#39C579' },
   'Update': { icon: Newspaper, label: 'Update', color: '#CCFF00' },
-  'Deprecation': { icon: Star, label: 'Deprecation', color: '#FFD93D' },
-  'Rollback': { icon: PartyPopper, label: 'Rollback', color: '#FF6B9D' },
+  'Deprecation': { icon: Star, label: 'Deprecation', color: '#9FA7AD' },
+  'Rollback': { icon: PartyPopper, label: 'Rollback', color: '#FFB930' },
 }
 
 const CARD_WIDTH = 448
@@ -122,7 +124,15 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
               className="bg-[#294CCC] rounded-3xl p-4 why-it-matters-card"
             >
               <div className="flex items-center gap-2">
-              <LightBulbs width={56} height={56} className="clipboard-icon" />
+              <div className="flex-shrink-0 overflow-visible" style={{ width: '56px', height: '56px' }}>
+                <DotLottieReact
+                  src="/lotties/LightBulb.lottie"
+                  loop
+                  autoplay
+                  style={{ width: '100%', height: '100%' }}
+                />
+              </div>
+              {/* <LightBulbs width={56} height={56} className="clipboard-icon" /> */}
               <p className="text-white opacity-85 text-lg font-light">{releaseNote.whyItMatters}</p>
   
               </div>
