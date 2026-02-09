@@ -8,6 +8,7 @@ import {
 import { loadSlackConfig } from '@/lib/config'
 import { fetchSlackMessages, type SlackApiMessage } from '@/lib/slack'
 import { extractReleasesFromMessages } from '@/lib/extraction'
+import { notifyNewReleases } from '@/lib/slack-notify'
 import { apiSuccess, apiServerError } from '@/lib/api-response'
 
 interface SyncResult {
@@ -102,6 +103,10 @@ export async function POST(request: NextRequest) {
     for (const release of releases) {
       const id = await insertRelease(release)
       if (id) inserted++
+    }
+
+    if (releases.length > 0) {
+      await notifyNewReleases(releases)
     }
 
     return apiSuccess<SyncResult>({

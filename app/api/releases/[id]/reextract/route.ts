@@ -3,6 +3,7 @@ import { getReleaseById, deleteReleasesForMessage, insertRelease, type Release }
 import { loadSlackConfig } from '@/lib/config'
 import { fetchThreadReplies } from '@/lib/slack'
 import { extractReleasesFromMessages } from '@/lib/extraction'
+import { notifyNewReleases } from '@/lib/slack-notify'
 import { apiSuccess, apiNotFound, apiServerError } from '@/lib/api-response'
 
 interface ReextractResult {
@@ -60,6 +61,10 @@ export async function POST(
           newReleases.push({ ...fullRelease, date: dateStr })
         }
       }
+    }
+
+    if (releases.length > 0) {
+      await notifyNewReleases(releases)
     }
 
     console.log(`Re-extract complete:`)
