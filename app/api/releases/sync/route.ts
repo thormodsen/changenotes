@@ -87,20 +87,37 @@ export async function POST(request: NextRequest) {
       existingReleases = await getExistingReleaseMessageIds(slackConfig.channelId)
     }
 
-    const messagesToProcess: SlackApiMessage[] = []
+    // Find new messages that need processing
+    const newMessageIds = new Set<string>()
     for (const msg of allMessages) {
       if (!existingReleases.has(msg.ts)) {
+        newMessageIds.add(msg.ts)
+      }
+    }
+
+    // Include parent messages for context even if already extracted
+    // (needed for classification and extraction of thread replies)
+    const parentTsNeeded = new Set<string>()
+    for (const msg of allMessages) {
+      if (newMessageIds.has(msg.ts) && msg.thread_ts && msg.thread_ts !== msg.ts) {
+        parentTsNeeded.add(msg.thread_ts)
+      }
+    }
+
+    const messagesToProcess: SlackApiMessage[] = []
+    for (const msg of allMessages) {
+      if (newMessageIds.has(msg.ts) || parentTsNeeded.has(msg.ts)) {
         messagesToProcess.push(msg)
       }
     }
 
     console.log(
-      `Processing ${messagesToProcess.length} messages (${editedMessageIds.length} edited)`
+      `Processing ${newMessageIds.size} new messages (${parentTsNeeded.size} parents for context, ${editedMessageIds.length} edited)`
     )
 
-    const alreadyExtracted = allMessages.length - messagesToProcess.length
+    const alreadyExtracted = allMessages.length - newMessageIds.size
 
-    if (messagesToProcess.length === 0) {
+    if (newMessageIds.size === 0) {
       return apiSuccess<SyncResult>({
         fetched: allMessages.length,
         alreadyExtracted,
@@ -117,8 +134,12 @@ export async function POST(request: NextRequest) {
       slackConfig.channelId
     )
 
+    // Only insert releases for new messages (not context-only parents)
     const insertedReleases: NotifiableRelease[] = []
     for (const release of releases) {
+      if (!newMessageIds.has(release.messageId)) {
+        continue // Skip releases for context-only parent messages
+      }
       const id = await insertRelease(release)
       if (id) {
         insertedReleases.push({ id, title: release.title, type: release.type })
@@ -132,7 +153,7 @@ export async function POST(request: NextRequest) {
     return apiSuccess<SyncResult>({
       fetched: allMessages.length,
       alreadyExtracted,
-      newMessages: messagesToProcess.length,
+      newMessages: newMessageIds.size,
       extracted: insertedReleases.length,
       skipped: skippedIds.length,
       edited: editedMessageIds.length,
