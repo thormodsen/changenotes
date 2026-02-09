@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   initializeSchema,
   getExistingReleaseMessageIds,
+  getKnownThreadIds,
   insertRelease,
   deleteReleasesForMessage,
 } from '@/lib/db/client'
 import { loadSlackConfig } from '@/lib/config'
-import { fetchSlackMessages, fetchMissingParents, type SlackApiMessage } from '@/lib/slack'
+import { fetchSlackMessages, fetchMissingParents, fetchRecentThreadReplies, type SlackApiMessage } from '@/lib/slack'
 import { extractReleasesFromMessages } from '@/lib/extraction'
 import { notifyNewReleases, type NotifiableRelease } from '@/lib/slack-notify'
 
@@ -38,9 +39,25 @@ export async function GET(request: NextRequest) {
     // Look back 24 hours
     const oldest = Date.now() - 24 * 60 * 60 * 1000
 
+    // Fetch messages from channel history
     const fetchedMessages = await fetchSlackMessages({ oldest })
-    const allMessages = await fetchMissingParents(fetchedMessages)
-    console.log(`[Cron] Fetched ${fetchedMessages.length} messages from Slack (${allMessages.length} with parents)`)
+
+    // Also fetch recent replies to known threads (they don't appear in history)
+    const knownThreads = await getKnownThreadIds(slackConfig.channelId)
+    const recentReplies = await fetchRecentThreadReplies(knownThreads, { oldest })
+
+    // Combine and deduplicate
+    const combinedMessages = [...fetchedMessages, ...recentReplies]
+    const seenTs = new Set<string>()
+    const dedupedMessages = combinedMessages.filter(msg => {
+      if (seenTs.has(msg.ts)) return false
+      seenTs.add(msg.ts)
+      return true
+    })
+
+    // Fetch missing parents for thread context
+    const allMessages = await fetchMissingParents(dedupedMessages)
+    console.log(`[Cron] Fetched ${fetchedMessages.length} messages + ${recentReplies.length} thread replies (${allMessages.length} total with parents)`)
 
     let existingReleases = await getExistingReleaseMessageIds(slackConfig.channelId)
 

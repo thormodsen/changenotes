@@ -109,6 +109,43 @@ export async function fetchThreadReplies(threadTs: string): Promise<SlackApiMess
 }
 
 /**
+ * Fetch recent replies to known threads.
+ * conversations.history doesn't return thread replies unless broadcast.
+ * This fetches replies for given threads within the time range.
+ */
+export async function fetchRecentThreadReplies(
+  threadTsList: string[],
+  options: { oldest?: number; latest?: number }
+): Promise<SlackApiMessage[]> {
+  if (threadTsList.length === 0) return []
+
+  const config = loadSlackConfig()
+  const oldestTs = options.oldest ? options.oldest / 1000 : 0
+  const latestTs = options.latest ? options.latest / 1000 : Date.now() / 1000
+  const replies: SlackApiMessage[] = []
+
+  console.log(`[Slack] Fetching recent replies for ${threadTsList.length} known threads`)
+
+  for (const threadTs of threadTsList) {
+    const threadMessages = await fetchThreadReplies(threadTs)
+    for (const msg of threadMessages) {
+      // Skip parent message (we only want replies)
+      if (msg.ts === threadTs) continue
+      // Skip excluded bots
+      if (msg.bot_id && config.excludeBotIds.includes(msg.bot_id)) continue
+      // Only include if within time range
+      const msgTs = parseFloat(msg.ts)
+      if (msgTs >= oldestTs && msgTs <= latestTs) {
+        replies.push(msg)
+      }
+    }
+  }
+
+  console.log(`[Slack] Found ${replies.length} recent thread replies`)
+  return replies
+}
+
+/**
  * Fetch missing parent messages for thread replies.
  * When syncing a limited time range, thread replies may be fetched without their parent.
  * This function identifies those orphan replies and fetches their parent messages.
