@@ -7,13 +7,9 @@ export interface NotifiableRelease {
 }
 
 function getBaseUrl(): string {
-  if (process.env.APP_URL) {
-    return process.env.APP_URL
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`
-  }
-  return 'https://changenotes.vercel.app'
+  // Use APP_URL if set, otherwise fallback to production URL
+  // Note: VERCEL_URL gives preview deployment URLs, not production
+  return process.env.APP_URL || 'https://changenotes.vercel.app'
 }
 
 /**
@@ -35,7 +31,7 @@ export async function notifyNewReleases(releases: NotifiableRelease[]): Promise<
 
   const releaseLines = releases
     .slice(0, 10) // Cap at 10 to avoid huge messages
-    .map((r) => `• <${baseUrl}/release/${r.id}|${r.title}> (${r.type})`)
+    .map((r) => `• <${baseUrl}/changelog/${r.id}|${r.title}> (${r.type})`)
     .join('\n')
 
   const suffix = releases.length > 10 ? `\n_...and ${releases.length - 10} more_` : ''
