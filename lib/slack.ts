@@ -107,3 +107,45 @@ export async function fetchThreadReplies(threadTs: string): Promise<SlackApiMess
 
   return data.messages || []
 }
+
+/**
+ * Fetch missing parent messages for thread replies.
+ * When syncing a limited time range, thread replies may be fetched without their parent.
+ * This function identifies those orphan replies and fetches their parent messages.
+ */
+export async function fetchMissingParents(messages: SlackApiMessage[]): Promise<SlackApiMessage[]> {
+  const messageIds = new Set(messages.map(m => m.ts))
+  const missingParentTs = new Set<string>()
+
+  for (const msg of messages) {
+    if (msg.thread_ts && msg.thread_ts !== msg.ts && !messageIds.has(msg.thread_ts)) {
+      missingParentTs.add(msg.thread_ts)
+    }
+  }
+
+  if (missingParentTs.size === 0) {
+    return messages
+  }
+
+  console.log(`[Slack] Fetching ${missingParentTs.size} missing parent messages for thread context`)
+
+  const config = loadSlackConfig()
+  const additionalMessages: SlackApiMessage[] = []
+
+  for (const parentTs of Array.from(missingParentTs)) {
+    const threadMessages = await fetchThreadReplies(parentTs)
+    const parent = threadMessages.find(m => m.ts === parentTs)
+    if (parent && (!parent.bot_id || !config.excludeBotIds.includes(parent.bot_id))) {
+      additionalMessages.push(parent)
+    }
+  }
+
+  // Combine and deduplicate
+  const combined = [...messages, ...additionalMessages]
+  const seen = new Set<string>()
+  return combined.filter(msg => {
+    if (seen.has(msg.ts)) return false
+    seen.add(msg.ts)
+    return true
+  })
+}

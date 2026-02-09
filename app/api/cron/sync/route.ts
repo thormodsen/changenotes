@@ -6,7 +6,7 @@ import {
   deleteReleasesForMessage,
 } from '@/lib/db/client'
 import { loadSlackConfig } from '@/lib/config'
-import { fetchSlackMessages, type SlackApiMessage } from '@/lib/slack'
+import { fetchSlackMessages, fetchMissingParents, type SlackApiMessage } from '@/lib/slack'
 import { extractReleasesFromMessages } from '@/lib/extraction'
 import { notifyNewReleases, type NotifiableRelease } from '@/lib/slack-notify'
 
@@ -38,8 +38,9 @@ export async function GET(request: NextRequest) {
     // Look back 24 hours
     const oldest = Date.now() - 24 * 60 * 60 * 1000
 
-    const allMessages = await fetchSlackMessages({ oldest })
-    console.log(`[Cron] Fetched ${allMessages.length} messages from Slack`)
+    const fetchedMessages = await fetchSlackMessages({ oldest })
+    const allMessages = await fetchMissingParents(fetchedMessages)
+    console.log(`[Cron] Fetched ${fetchedMessages.length} messages from Slack (${allMessages.length} with parents)`)
 
     let existingReleases = await getExistingReleaseMessageIds(slackConfig.channelId)
 

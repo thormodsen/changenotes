@@ -6,7 +6,7 @@ import {
   deleteReleasesForMessage,
 } from '@/lib/db/client'
 import { loadSlackConfig } from '@/lib/config'
-import { fetchSlackMessages, type SlackApiMessage } from '@/lib/slack'
+import { fetchSlackMessages, fetchMissingParents, type SlackApiMessage } from '@/lib/slack'
 import { extractReleasesFromMessages } from '@/lib/extraction'
 import { notifyNewReleases, type NotifiableRelease } from '@/lib/slack-notify'
 import { apiSuccess, apiServerError } from '@/lib/api-response'
@@ -48,8 +48,9 @@ export async function POST(request: NextRequest) {
       oldest = Date.now() - 7 * 24 * 60 * 60 * 1000
     }
 
-    const allMessages = await fetchSlackMessages({ oldest, latest })
-    console.log(`Fetched ${allMessages.length} messages from Slack`)
+    const fetchedMessages = await fetchSlackMessages({ oldest, latest })
+    const allMessages = await fetchMissingParents(fetchedMessages)
+    console.log(`Fetched ${fetchedMessages.length} messages from Slack (${allMessages.length} with parents)`)
 
     let existingReleases = await getExistingReleaseMessageIds(slackConfig.channelId)
 
