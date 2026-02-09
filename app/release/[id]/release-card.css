@@ -1,0 +1,28 @@
+.release-card {
+  border-radius: 3rem;
+  corner-shape: squircle;
+}
+
+.release-card-button {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.release-card-button:hover {
+  background-color: #ffffff;
+  opacity: 0.9;
+}
+
+.release-card-button:active {
+  transform: scale(0.98);
+}
+
+.why-it-matters-card {
+  border-radius: 2rem;
+  corner-shape: squircle;
+}
+
+.background-release-card {
+  width: 100% !important;
+  height: 100% !important;
+}
