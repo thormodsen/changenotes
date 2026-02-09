@@ -1,11 +1,26 @@
 import { loadSlackConfig } from './config'
-import type { ExtractedRelease } from './extraction'
+
+export interface NotifiableRelease {
+  id: string
+  title: string
+  type: string
+}
+
+function getBaseUrl(): string {
+  if (process.env.APP_URL) {
+    return process.env.APP_URL
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`
+  }
+  return 'https://changenotes.vercel.app'
+}
 
 /**
  * Send a notification to Slack about newly extracted releases.
  * Uses SLACK_NOTIFY_CHANNEL if set, otherwise falls back to the main channel.
  */
-export async function notifyNewReleases(releases: ExtractedRelease[]): Promise<void> {
+export async function notifyNewReleases(releases: NotifiableRelease[]): Promise<void> {
   console.log(`[Notify] Called with ${releases.length} releases`)
 
   if (releases.length === 0) {
@@ -15,11 +30,12 @@ export async function notifyNewReleases(releases: ExtractedRelease[]): Promise<v
 
   const config = loadSlackConfig()
   const notifyChannel = process.env.SLACK_NOTIFY_CHANNEL || config.channelId
-  console.log(`[Notify] Sending to channel: ${notifyChannel}`)
+  const baseUrl = getBaseUrl()
+  console.log(`[Notify] Sending to channel: ${notifyChannel}, baseUrl: ${baseUrl}`)
 
   const releaseLines = releases
     .slice(0, 10) // Cap at 10 to avoid huge messages
-    .map((r) => `• "${r.title}" (${r.type})`)
+    .map((r) => `• <${baseUrl}/release/${r.id}|${r.title}> (${r.type})`)
     .join('\n')
 
   const suffix = releases.length > 10 ? `\n_...and ${releases.length - 10} more_` : ''

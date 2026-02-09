@@ -8,7 +8,7 @@ import {
 import { loadSlackConfig } from '@/lib/config'
 import { fetchSlackMessages, type SlackApiMessage } from '@/lib/slack'
 import { extractReleasesFromMessages } from '@/lib/extraction'
-import { notifyNewReleases } from '@/lib/slack-notify'
+import { notifyNewReleases, type NotifiableRelease } from '@/lib/slack-notify'
 import { apiSuccess, apiServerError } from '@/lib/api-response'
 
 interface SyncResult {
@@ -99,21 +99,23 @@ export async function POST(request: NextRequest) {
       slackConfig.channelId
     )
 
-    let inserted = 0
+    const insertedReleases: NotifiableRelease[] = []
     for (const release of releases) {
       const id = await insertRelease(release)
-      if (id) inserted++
+      if (id) {
+        insertedReleases.push({ id, title: release.title, type: release.type })
+      }
     }
 
-    if (releases.length > 0) {
-      await notifyNewReleases(releases)
+    if (insertedReleases.length > 0) {
+      await notifyNewReleases(insertedReleases)
     }
 
     return apiSuccess<SyncResult>({
       fetched: allMessages.length,
       alreadyExtracted,
       newMessages: messagesToProcess.length,
-      extracted: inserted,
+      extracted: insertedReleases.length,
       skipped: skippedIds.length,
       edited: editedMessageIds.length,
       promptVersion,

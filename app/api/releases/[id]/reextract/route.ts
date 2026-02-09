@@ -3,7 +3,7 @@ import { getReleaseById, deleteReleasesForMessage, insertRelease, type Release }
 import { loadSlackConfig } from '@/lib/config'
 import { fetchThreadReplies } from '@/lib/slack'
 import { extractReleasesFromMessages } from '@/lib/extraction'
-import { notifyNewReleases } from '@/lib/slack-notify'
+import { notifyNewReleases, type NotifiableRelease } from '@/lib/slack-notify'
 import { apiSuccess, apiNotFound, apiServerError } from '@/lib/api-response'
 
 interface ReextractResult {
@@ -63,8 +63,13 @@ export async function POST(
       }
     }
 
-    if (releases.length > 0) {
-      await notifyNewReleases(releases)
+    if (newReleases.length > 0) {
+      const notifiableReleases: NotifiableRelease[] = newReleases.map(r => ({
+        id: r.id,
+        title: r.title,
+        type: r.type,
+      }))
+      await notifyNewReleases(notifiableReleases)
     }
 
     console.log(`Re-extract complete:`)
