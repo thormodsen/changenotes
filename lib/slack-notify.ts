@@ -21,13 +21,14 @@ function getBaseUrl(): string {
 const MAX_IMAGES_PER_RELEASE = 5
 
 /**
- * Post a single image as a thread reply
+ * Post a single image as a thread reply using Block Kit
  */
 async function postImageToThread(
   token: string,
   channel: string,
   threadTs: string,
-  imageUrl: string
+  imageUrl: string,
+  altText?: string
 ): Promise<void> {
   const res = await fetch('https://slack.com/api/chat.postMessage', {
     method: 'POST',
@@ -38,15 +39,20 @@ async function postImageToThread(
     body: JSON.stringify({
       channel,
       thread_ts: threadTs,
-      text: imageUrl,
-      unfurl_links: true,
-      unfurl_media: true,
+      text: altText || 'Image',
+      blocks: [
+        {
+          type: 'image',
+          image_url: imageUrl,
+          alt_text: altText || 'Release image',
+        },
+      ],
     }),
   })
 
   const data = await res.json()
   if (!data.ok) {
-    console.error('[Notify] Failed to post image:', data.error)
+    console.error('[Notify] Failed to post image:', data.error, imageUrl)
   }
 }
 
@@ -100,7 +106,7 @@ export async function notifyNewReleases(releases: NotifiableRelease[]): Promise<
       if (images.length > 0) {
         console.log(`[Notify] Posting ${images.length} images to thread`)
         for (const image of images) {
-          await postImageToThread(config.token, notifyChannel, data.ts, image.url)
+          await postImageToThread(config.token, notifyChannel, data.ts, image.url, image.name)
         }
       }
     } catch (err) {
