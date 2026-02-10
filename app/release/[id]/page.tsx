@@ -54,7 +54,7 @@ export default async function ReleasePage({ params }: PageProps) {
   const displayWhyItMatters = release.marketing_why_this_matters || release.why_this_matters || ''
 
   return (
-    <main className="h-[100dvh] bg-[#0E2433] flex items-center justify-center p-4 overflow-hidden">
+    <main className="h-[100dvh] bg-[#0E2433] flex items-center justify-center p-4 overflow-hidden overscroll-behavior-none" style={{ overscrollBehavior: 'none' }}>
       <ReleaseCard
         releaseNote={{
           id: release.id,
