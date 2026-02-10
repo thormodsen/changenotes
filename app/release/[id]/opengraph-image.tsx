@@ -4,8 +4,8 @@ import { getReleaseById } from '@/lib/db/client'
 export const runtime = 'edge'
 export const alt = 'Release Preview'
 export const size = {
-  width: 1200,
-  height: 630,
+  width: 2400,
+  height: 1260,
 }
 export const contentType = 'image/png'
 
@@ -53,8 +53,8 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           display: 'flex',
           flexDirection: 'column',
           backgroundColor: '#335FFF',
-          padding: '60px',
-          paddingBottom: '180px',
+          padding: '120px',
+          paddingBottom: '360px',
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -62,12 +62,12 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         {/* Title - larger and more prominent */}
         <h1
           style={{
-            fontSize: 72,
+            fontSize: 144,
             fontWeight: 800,
             color: 'white',
             lineHeight: 1.1,
             margin: 0,
-            marginBottom: '32px',
+            marginBottom: '64px',
           }}
         >
           {title}
@@ -77,8 +77,8 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         {truncatedDescription && (
           <p
             style={{
-              fontSize: 32,
-              fontWeight: 300,
+              fontSize: 64,
+              fontWeight: 400,
               color: 'white',
               lineHeight: 1.4,
               margin: 0,
@@ -96,7 +96,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             bottom: 0,
             left: 0,
             right: 0,
-            height: '180px',
+            height: '360px',
             display: 'flex',
           }}
         >
@@ -118,10 +118,10 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         <div
           style={{
             position: 'absolute',
-            bottom: '60px',
-            left: '80px',
-            width: '120px',
-            height: '120px',
+            bottom: '120px',
+            left: '160px',
+            width: '240px',
+            height: '240px',
             display: 'flex',
           }}
         >
