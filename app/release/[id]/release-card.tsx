@@ -36,14 +36,14 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
   const dateValue = releaseNote.date instanceof Date
     ? releaseNote.date
     : new Date(typeof releaseNote.date === 'string' && releaseNote.date.includes('T')
-        ? releaseNote.date
-        : releaseNote.date + 'T00:00:00')
+      ? releaseNote.date
+      : releaseNote.date + 'T00:00:00')
   const formattedDate = !isNaN(dateValue.getTime())
     ? dateValue.toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      })
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    })
     : ''
 
   return (
@@ -51,9 +51,9 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
       initial={{ opacity: 0, y: 15, filter: 'blur(10px)' }}
       animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="relative bg-[#335FFF] overflow-hidden w-full min-w-[288px] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px] h-full max-h-[800px] flex flex-col release-card"
+      className="relative bg-[#335FFF] overflow-hidden w-full min-w-[288px] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px] min-h-[95dvh] flex flex-col release-card"
     >
-      
+
       {/* 1. Header - Type badge and date (top-anchored) */}
       <div className="flex items-center gap-4 flex-shrink-0 p-4 min-[480px]:p-7 pb-0 min-[480px]:pb-0">
         <div
@@ -67,24 +67,21 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
       </div>
 
       {/* Middle content: Header, Description, Callout, CTA */}
-      <div className="flex flex-col px-4 min-[480px]:px-7 py-4 min-[480px]:py-6 flex-1 min-h-0">
-        {/* 2. Title - stays at top */}
-        <h1 className="text-3xl font-extrabold text-white leading-tight min-[480px]:text-4xl flex-shrink-0">
-          {releaseNote.title}
-        </h1>
+      <div className="flex gap-6 flex-col px-4 min-[480px]:px-7 py-4 min-[480px]:py-6 flex-1 min-h-0">
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4">
+            {/* 2. Title - stays at top */}
+            <h1 className="text-3xl font-extrabold text-white leading-tight min-[480px]:text-4xl flex-shrink-0">
+              {releaseNote.title}
+            </h1>
 
-        {/* Spacer to distribute description between header and callout */}
-        <div className="flex-1 min-h-4" />
-
-        {/* 3. Description - distributed in middle */}
-        {releaseNote.description && (
-          <p className="text-base font-light text-white leading-relaxed min-[480px]:text-xl flex-shrink-0">
-            {releaseNote.description}
-          </p>
-        )}
-
-        {/* Spacer to distribute callout between description and CTA */}
-        <div className="flex-1 min-h-4" />
+            {/* 3. Description - distributed in middle */}
+            {releaseNote.description && (
+              <p className="text-base font-light text-white leading-relaxed min-[480px]:text-xl flex-shrink-0">
+                {releaseNote.description}
+              </p>
+            )}
+          </div>
 
         {/* 4. Why It Matters - Callout - distributed in middle */}
         {releaseNote.whyItMatters && (
@@ -103,9 +100,10 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
             </div>
           </div>
         )}
+        </div>
 
-        {/* Spacer to push CTA down */}
-        <div className="flex-1 min-h-4" />
+
+
 
         {/* 5. CTA - stays above footer */}
         <a
@@ -117,35 +115,35 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
       </div>
 
       {/* 6. Footer - bottom-anchored */}
-      <div className="relative w-full h-[120px] min-[480px]:h-[160px] overflow-hidden flex-shrink-0">
-          <CourtLines className="absolute inset-0 w-full h-full" />
-          {/* Shadow - slides in, no rotation */}
-          <motion.div
-            className="absolute bottom-[55px] left-[95px] w-[70px] h-[30px] min-[480px]:w-[80px] min-[480px]:h-[35px] overflow-visible"
-            initial={{ x: -250 }}
-            animate={{ x: 0 }}
-            transition={{
-              delay: 2,
-              duration: 0.8,
-              ease: [0.25, 0.46, 0.45, 0.94],
-            }}
-          >
-            <TennisBallShadow className="w-full h-full" />
-          </motion.div>
-          {/* Ball - slides in with rotation */}
-          <motion.div
-            className="absolute bottom-[55px] left-[105px] w-[70px] h-[70px] min-[480px]:bottom-[60px] min-[480px]:w-[90px] min-[480px]:h-[90px]"
-            initial={{ x: -250, rotate: 0 }}
-            animate={{ x: 0, rotate: 450 }}
-            transition={{
-              delay: 2,
-              duration: 0.8,
-              ease: [0.25, 0.46, 0.45, 0.94],
-            }}
-          >
-            <TennisBall className="w-full h-full" />
-          </motion.div>
-        </div>
+      <div className="relative w-full h-[120px] min-[480px]:h-[160px] overflow-hidden flex-shrink-0 z-[-1]">
+        <CourtLines className="absolute inset-0 w-full h-full" />
+        {/* Shadow - slides in, no rotation */}
+        <motion.div
+          className="absolute bottom-[55px] left-[95px] w-[70px] h-[30px] min-[480px]:w-[80px] min-[480px]:h-[35px] overflow-visible"
+          initial={{ x: -250 }}
+          animate={{ x: 0 }}
+          transition={{
+            delay: 2,
+            duration: 0.8,
+            ease: [0.25, 0.46, 0.45, 0.94],
+          }}
+        >
+          <TennisBallShadow className="w-full h-full" />
+        </motion.div>
+        {/* Ball - slides in with rotation */}
+        <motion.div
+          className="absolute bottom-[55px] left-[105px] w-[70px] h-[70px] min-[480px]:bottom-[60px] min-[480px]:w-[90px] min-[480px]:h-[90px]"
+          initial={{ x: -250, rotate: 0 }}
+          animate={{ x: 0, rotate: 450 }}
+          transition={{
+            delay: 2,
+            duration: 0.8,
+            ease: [0.25, 0.46, 0.45, 0.94],
+          }}
+        >
+          <TennisBall className="w-full h-full" />
+        </motion.div>
+      </div>
     </motion.div>
   )
 }
