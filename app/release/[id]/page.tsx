@@ -54,7 +54,7 @@ export default async function ReleasePage({ params }: PageProps) {
   const displayWhyItMatters = release.marketing_why_this_matters || release.why_this_matters || ''
 
   return (
-    <main className="h-dvh bg-[#0E2433] flex items-center justify-center p-4">
+    <main className="bg-[#0E2433] flex items-center justify-center p-4">
       <ReleaseCard
         releaseNote={{
           id: release.id,
