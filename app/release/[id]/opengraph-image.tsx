@@ -9,16 +9,6 @@ export const size = {
 }
 export const contentType = 'image/png'
 
-const typeConfig: Record<string, { label: string; color: string }> = {
-  'New Feature': { label: 'New Feature', color: '#CCFF00' },
-  'Improvement': { label: 'Improvement', color: '#708FFF' },
-  'Bug Fix': { label: 'Bug Fix', color: '#39C579' },
-  'Update': { label: 'Update', color: '#CCFF00' },
-  'Release': { label: 'Update', color: '#CCFF00' },
-  'Deprecation': { label: 'Deprecation', color: '#9FA7AD' },
-  'Rollback': { label: 'Rollback', color: '#FFB930' },
-}
-
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const release = await getReleaseById(id)
@@ -48,31 +38,11 @@ export default async function Image({ params }: { params: Promise<{ id: string }
 
   const title = release.marketing_title || release.title
   const description = release.marketing_description || release.description || ''
-  const whyItMatters = release.marketing_why_this_matters || release.why_this_matters || ''
-  const config = typeConfig[release.type] || typeConfig['Update']
-
-  // Format the date - handle both ISO strings and date-only strings
-  let formattedDate = ''
-  if (release.date) {
-    const dateValue = new Date(release.date)
-    if (!isNaN(dateValue.getTime())) {
-      formattedDate = dateValue.toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      })
-    }
-  }
 
   // Truncate description if too long
-  const truncatedDescription = description.length > 200 
-    ? description.slice(0, 197) + '...' 
+  const truncatedDescription = description.length > 180 
+    ? description.slice(0, 177) + '...' 
     : description
-
-  // Truncate why it matters if too long
-  const truncatedWhyItMatters = whyItMatters.length > 120 
-    ? whyItMatters.slice(0, 117) + '...' 
-    : whyItMatters
 
   return new ImageResponse(
     (
@@ -83,48 +53,21 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           display: 'flex',
           flexDirection: 'column',
           backgroundColor: '#335FFF',
-          padding: '48px',
+          padding: '60px',
+          paddingBottom: '180px',
           position: 'relative',
           overflow: 'hidden',
         }}
       >
-        {/* Header - Type badge and date */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '24px',
-            marginBottom: '32px',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              backgroundColor: config.color,
-              borderRadius: '9999px',
-              padding: '12px 24px',
-            }}
-          >
-            <span style={{ color: '#0E2433', fontSize: 20, fontWeight: 500 }}>
-              {config.label}
-            </span>
-          </div>
-          <span style={{ color: 'white', fontSize: 20, fontWeight: 400 }}>
-            {formattedDate}
-          </span>
-        </div>
-
-        {/* Title */}
+        {/* Title - larger and more prominent */}
         <h1
           style={{
-            fontSize: 56,
+            fontSize: 72,
             fontWeight: 800,
             color: 'white',
             lineHeight: 1.1,
             margin: 0,
-            marginBottom: '24px',
+            marginBottom: '32px',
           }}
         >
           {title}
@@ -134,47 +77,16 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         {truncatedDescription && (
           <p
             style={{
-              fontSize: 28,
+              fontSize: 32,
               fontWeight: 300,
               color: 'white',
               lineHeight: 1.4,
               margin: 0,
-              marginBottom: '24px',
+              opacity: 0.9,
             }}
           >
             {truncatedDescription}
           </p>
-        )}
-
-        {/* Why It Matters callout - positioned above footer */}
-        {truncatedWhyItMatters && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '16px',
-              backgroundColor: '#294CCC',
-              borderRadius: '24px',
-              padding: '24px',
-              marginTop: 'auto',
-              marginBottom: '100px',
-            }}
-          >
-            {/* Lightbulb emoji as placeholder for Lottie */}
-            <span style={{ fontSize: 32 }}>💡</span>
-            <p
-              style={{
-                fontSize: 22,
-                fontWeight: 300,
-                color: 'white',
-                opacity: 0.9,
-                margin: 0,
-                lineHeight: 1.4,
-              }}
-            >
-              {truncatedWhyItMatters}
-            </p>
-          </div>
         )}
 
         {/* Footer - Court lines SVG */}
@@ -184,7 +96,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             bottom: 0,
             left: 0,
             right: 0,
-            height: '140px',
+            height: '180px',
             display: 'flex',
           }}
         >
@@ -202,14 +114,14 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           </svg>
         </div>
 
-        {/* Tennis ball */}
+        {/* Tennis ball - larger */}
         <div
           style={{
             position: 'absolute',
-            bottom: '50px',
-            left: '100px',
-            width: '90px',
-            height: '90px',
+            bottom: '60px',
+            left: '80px',
+            width: '120px',
+            height: '120px',
             display: 'flex',
           }}
         >
