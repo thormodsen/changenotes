@@ -2,7 +2,7 @@
 
 import './release-card.css'
 import { Newspaper, Star, CheckCircle, Zap, Rocket, PartyPopper } from 'lucide-react'
-import { BackgroundReleaseCard } from '@/app/assets/icons'
+import { CourtLines, TennisBall, TennisBallShadow } from '@/app/assets/icons'
 import { motion } from 'framer-motion'
 import React from 'react';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
@@ -100,6 +100,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
                   src="/lotties/LightBulb-10s.lottie"
                   loop
                   autoplay
+                  speed={0.9}
                   style={{ width: '100%', height: '100%' }}
                 />
               </div>
@@ -122,8 +123,34 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
         </div>
       </div>
               {/* Footer */}
-      <div className="">
-          <BackgroundReleaseCard className="background-release-card"/>
+      <div className="relative w-full h-[120px] min-[480px]:h-[160px] overflow-hidden">
+          <CourtLines className="absolute inset-0 w-full h-full" />
+          {/* Shadow - slides in, no rotation */}
+          <motion.div
+            className="absolute bottom-[55px] left-[95px] w-[70px] h-[30px] min-[480px]:w-[80px] min-[480px]:h-[35px] overflow-visible"
+            initial={{ x: -250 }}
+            animate={{ x: 0 }}
+            transition={{
+              delay: 2,
+              duration: 0.8,
+              ease: [0.25, 0.46, 0.45, 0.94],
+            }}
+          >
+            <TennisBallShadow className="w-full h-full" />
+          </motion.div>
+          {/* Ball - slides in with rotation */}
+          <motion.div
+            className="absolute bottom-[55px] left-[105px] w-[70px] h-[70px] min-[480px]:bottom-[60px] min-[480px]:w-[90px] min-[480px]:h-[90px]"
+            initial={{ x: -250, rotate: 0 }}
+            animate={{ x: 0, rotate: 450 }}
+            transition={{
+              delay: 2,
+              duration: 0.8,
+              ease: [0.25, 0.46, 0.45, 0.94],
+            }}
+          >
+            <TennisBall className="w-full h-full" />
+          </motion.div>
         </div>
       </motion.div>
     </div>
