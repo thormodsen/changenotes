@@ -68,6 +68,7 @@ export async function POST(
         id: r.id,
         title: r.title,
         description: r.description || '',
+        images: r.media?.images?.map(img => ({ url: img.url, name: img.name })),
       }))
       await notifyNewReleases(notifiableReleases)
     }

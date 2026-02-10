@@ -134,7 +134,12 @@ export async function GET(request: NextRequest) {
       }
       const id = await insertRelease(release)
       if (id) {
-        insertedReleases.push({ id, title: release.title, description: release.description })
+        insertedReleases.push({
+          id,
+          title: release.title,
+          description: release.description,
+          images: release.media?.images?.map(img => ({ url: img.url, name: img.name })),
+        })
       }
     }
 
