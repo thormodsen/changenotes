@@ -101,12 +101,7 @@ export async function processSingleMessage(
     for (const release of messageReleases) {
       const id = await insertRelease(release)
       if (id) {
-        insertedReleases.push({
-          id,
-          title: release.title,
-          description: release.description,
-          images: release.media?.images?.map(img => ({ url: img.url, name: img.name })),
-        })
+        insertedReleases.push({ id, title: release.title, description: release.description })
       }
     }
 
