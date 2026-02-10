@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo, memo } from 'react'
 import type { Release } from '@/lib/types'
 import { formatDisplayDate } from '@/lib/text-utils'
 import { ReleaseCard } from './ReleaseCard'
@@ -34,7 +35,7 @@ function groupByTimestamp(releases: Release[]): Record<string, Release[]> {
   }, {})
 }
 
-export function ReleaseList({
+export const ReleaseList = memo(function ReleaseList({
   releases,
   total,
   workspace,
@@ -46,6 +47,14 @@ export function ReleaseList({
   onError,
   onMessage,
 }: ReleaseListProps) {
+  // Memoize grouped releases to avoid recalculation on every render
+  const groupedReleases = useMemo(() => groupByTimestamp(releases), [releases])
+  const sortedDates = useMemo(
+    () => Object.keys(groupedReleases).sort((a, b) => b.localeCompare(a)),
+    [groupedReleases]
+  )
+  const hasMore = releases.length < total
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-[500px] text-gray-500">
@@ -78,10 +87,6 @@ export function ReleaseList({
       </div>
     )
   }
-
-  const groupedReleases = groupByTimestamp(releases)
-  const sortedDates = Object.keys(groupedReleases).sort((a, b) => b.localeCompare(a))
-  const hasMore = releases.length < total
 
   return (
     <div className="p-5">
@@ -125,4 +130,4 @@ export function ReleaseList({
       </div>
     </div>
   )
-}
+})

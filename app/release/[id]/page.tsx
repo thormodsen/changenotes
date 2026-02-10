@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { id } = await params
   const release = await getReleaseById(id)
 
-  if (!release || !release.shared) {
+  if (!release || !release.published || !release.shared) {
     return { title: 'Not Found' }
   }
 
@@ -44,7 +44,7 @@ export default async function ReleasePage({ params }: PageProps) {
   const { id } = await params
   const release = await getReleaseById(id)
 
-  if (!release || !release.shared) {
+  if (!release || !release.published || !release.shared) {
     notFound()
   }
 

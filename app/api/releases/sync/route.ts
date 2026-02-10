@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
 
     let existingReleases = await getExistingReleaseMessageIds(slackConfig.channelId)
 
+    // Collect edited messages first, then batch delete
     const editedMessageIds: string[] = []
     for (const msg of allMessages) {
       const existingEditedTs = existingReleases.get(msg.ts)
@@ -78,9 +79,13 @@ export async function POST(request: NextRequest) {
         const currentEditedTs = msg.edited?.ts || null
         if (currentEditedTs !== existingEditedTs) {
           editedMessageIds.push(msg.ts)
-          await deleteReleasesForMessage(msg.ts)
         }
       }
+    }
+
+    // Batch delete edited messages in parallel
+    if (editedMessageIds.length > 0) {
+      await Promise.all(editedMessageIds.map(id => deleteReleasesForMessage(id)))
     }
 
     if (editedMessageIds.length > 0) {

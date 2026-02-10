@@ -126,9 +126,13 @@ export async function fetchRecentThreadReplies(
 
   console.log(`[Slack] Fetching recent replies for ${threadTsList.length} known threads`)
 
-  for (const threadTs of threadTsList) {
-    const threadMessages = await fetchThreadReplies(threadTs)
-    for (const msg of threadMessages) {
+  // Fetch all threads in parallel for better performance
+  const allThreadMessages = await Promise.all(
+    threadTsList.map(threadTs => fetchThreadReplies(threadTs).then(msgs => ({ threadTs, msgs })))
+  )
+
+  for (const { threadTs, msgs } of allThreadMessages) {
+    for (const msg of msgs) {
       // Skip parent message (we only want replies)
       if (msg.ts === threadTs) continue
       // Skip excluded bots
@@ -167,11 +171,17 @@ export async function fetchMissingParents(messages: SlackApiMessage[]): Promise<
   console.log(`[Slack] Fetching ${missingParentTs.size} missing parent messages for thread context`)
 
   const config = loadSlackConfig()
-  const additionalMessages: SlackApiMessage[] = []
 
-  for (const parentTs of Array.from(missingParentTs)) {
-    const threadMessages = await fetchThreadReplies(parentTs)
-    const parent = threadMessages.find(m => m.ts === parentTs)
+  // Fetch all missing parents in parallel for better performance
+  const allThreadMessages = await Promise.all(
+    Array.from(missingParentTs).map(parentTs =>
+      fetchThreadReplies(parentTs).then(msgs => ({ parentTs, msgs }))
+    )
+  )
+
+  const additionalMessages: SlackApiMessage[] = []
+  for (const { parentTs, msgs } of allThreadMessages) {
+    const parent = msgs.find(m => m.ts === parentTs)
     if (parent && (!parent.bot_id || !config.excludeBotIds.includes(parent.bot_id))) {
       additionalMessages.push(parent)
     }

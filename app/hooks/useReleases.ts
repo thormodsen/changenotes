@@ -18,7 +18,6 @@ interface UseReleasesReturn {
   replaceRelease: (oldId: string, newReleases: Release[]) => void
   setError: (error: string | null) => void
   setMessage: (message: string | null) => void
-  clearMessage: () => void
 }
 
 export function useReleases(startDate: string, endDate: string): UseReleasesReturn {
@@ -91,10 +90,6 @@ export function useReleases(startDate: string, endDate: string): UseReleasesRetu
     setTotal(prev => prev - 1 + newReleases.length)
   }, [])
 
-  const clearMessage = useCallback(() => {
-    setMessage(null)
-  }, [])
-
   return {
     releases,
     total,
@@ -109,6 +104,5 @@ export function useReleases(startDate: string, endDate: string): UseReleasesRetu
     replaceRelease,
     setError,
     setMessage,
-    clearMessage,
   }
 }

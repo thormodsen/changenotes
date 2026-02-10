@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback, memo } from 'react'
 import type { Release } from '@/lib/types'
 import { buildSlackUrl, formatTimestamp } from '@/lib/text-utils'
 
@@ -25,7 +25,7 @@ interface EditFormState {
   featured_image_url: string
 }
 
-export function ReleaseCard({
+export const ReleaseCard = memo(function ReleaseCard({
   release,
   workspace,
   onUpdate,
@@ -49,7 +49,7 @@ export function ReleaseCard({
   const [reextracting, setReextracting] = useState(false)
   const [generatingMarketing, setGeneratingMarketing] = useState(false)
 
-  const startEdit = () => {
+  const startEdit = useCallback(() => {
     setEditForm({
       title: release.title,
       description: release.description || '',
@@ -61,13 +61,13 @@ export function ReleaseCard({
       featured_image_url: release.featured_image_url || '',
     })
     setIsEditing(true)
-  }
+  }, [release])
 
-  const cancelEdit = () => {
+  const cancelEdit = useCallback(() => {
     setIsEditing(false)
-  }
+  }, [])
 
-  const saveEdit = async () => {
+  const saveEdit = useCallback(async () => {
     try {
       const res = await fetch(`/api/releases/${release.id}`, {
         method: 'PATCH',
@@ -101,9 +101,9 @@ export function ReleaseCard({
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Failed to save')
     }
-  }
+  }, [editForm, release, onUpdate, onError])
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     if (!confirm(`Delete "${release.title}"?`)) return
 
     try {
@@ -117,9 +117,9 @@ export function ReleaseCard({
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Failed to delete')
     }
-  }
+  }, [release, onDelete, onMessage, onError])
 
-  const togglePublish = async () => {
+  const togglePublish = useCallback(async () => {
     try {
       const res = await fetch('/api/releases/publish', {
         method: 'POST',
@@ -137,9 +137,9 @@ export function ReleaseCard({
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Failed to update')
     }
-  }
+  }, [release, onUpdate, onError])
 
-  const reextract = async () => {
+  const reextract = useCallback(async () => {
     setReextracting(true)
     setMenuOpen(false)
 
@@ -161,9 +161,9 @@ export function ReleaseCard({
     } finally {
       setReextracting(false)
     }
-  }
+  }, [release, onReextract, onMessage, onError])
 
-  const generateMarketing = async () => {
+  const generateMarketing = useCallback(async () => {
     setGeneratingMarketing(true)
 
     try {
@@ -189,9 +189,9 @@ export function ReleaseCard({
     } finally {
       setGeneratingMarketing(false)
     }
-  }
+  }, [release, onUpdate, onMessage, onError])
 
-  const toggleShare = async () => {
+  const toggleShare = useCallback(async () => {
     setGeneratingMarketing(true)
 
     try {
@@ -241,7 +241,10 @@ export function ReleaseCard({
     } finally {
       setGeneratingMarketing(false)
     }
-  }
+  }, [release, onUpdate, onMessage, onError])
+
+  const handleMenuToggle = useCallback(() => setMenuOpen(prev => !prev), [])
+  const handleMenuClose = useCallback(() => setMenuOpen(false), [])
 
   const slackUrl =
     workspace && release.channel_id
@@ -276,8 +279,8 @@ export function ReleaseCard({
             menuOpen={menuOpen}
             reextracting={reextracting}
             generatingMarketing={generatingMarketing}
-            onMenuToggle={() => setMenuOpen(!menuOpen)}
-            onMenuClose={() => setMenuOpen(false)}
+            onMenuToggle={handleMenuToggle}
+            onMenuClose={handleMenuClose}
             onEdit={startEdit}
             onDelete={handleDelete}
             onTogglePublish={togglePublish}
@@ -289,9 +292,9 @@ export function ReleaseCard({
       </div>
     </div>
   )
-}
+})
 
-function ReleaseCardHeader({
+const ReleaseCardHeader = memo(function ReleaseCardHeader({
   release,
   slackUrl,
 }: {
@@ -328,9 +331,9 @@ function ReleaseCardHeader({
       )}
     </div>
   )
-}
+})
 
-function ReleaseCardContent({
+const ReleaseCardContent = memo(function ReleaseCardContent({
   release,
   slackUrl,
   workspace,
@@ -345,17 +348,21 @@ function ReleaseCardContent({
   return (
     <>
       <h4 className="font-medium text-gray-900">
-        <a
-          href={`/changelog/${release.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-blue-600 hover:underline inline-flex items-center gap-1"
-        >
-          {release.title}
-          <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
-        </a>
+        {release.published ? (
+          <a
+            href={`/changelog/${release.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-blue-600 hover:underline inline-flex items-center gap-1"
+          >
+            {release.title}
+            <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        ) : (
+          release.title
+        )}
       </h4>
 
       {release.description && (
@@ -424,23 +431,19 @@ function ReleaseCardContent({
         </div>
       )}
 
-      {release.marketing_title && (
+      {release.published && release.shared && release.marketing_title && (
         <div className="mt-3 p-3 bg-teal-50 border border-teal-200 rounded">
-          {release.shared ? (
-            <a
-              href={`/release/${release.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-medium text-teal-700 mb-2 hover:text-teal-900 inline-flex items-center gap-1"
-            >
-              Marketing Copy
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </a>
-          ) : (
-            <div className="text-xs font-medium text-teal-700 mb-2">Marketing Copy</div>
-          )}
+          <a
+            href={`/release/${release.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-medium text-teal-700 mb-2 hover:text-teal-900 inline-flex items-center gap-1"
+          >
+            Marketing Copy
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
           <div className="space-y-1 text-sm">
             <div>
               <span className="font-medium text-teal-800">Title:</span>{' '}
@@ -463,9 +466,9 @@ function ReleaseCardContent({
       )}
     </>
   )
-}
+})
 
-function ReleaseEditForm({
+const ReleaseEditForm = memo(function ReleaseEditForm({
   form,
   onChange,
   onSave,
@@ -594,9 +597,9 @@ function ReleaseEditForm({
       </div>
     </div>
   )
-}
+})
 
-function ReleaseCardActions({
+const ReleaseCardActions = memo(function ReleaseCardActions({
   release,
   menuOpen,
   reextracting,
@@ -625,42 +628,7 @@ function ReleaseCardActions({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      {/* Desktop: show all buttons */}
-      <button
-        onClick={onTogglePublish}
-        className={`hidden sm:block px-3 py-1 rounded text-xs font-medium transition-colors ${
-          release.published
-            ? 'bg-green-500 text-white hover:bg-green-600'
-            : 'border border-gray-300 text-gray-600 hover:bg-gray-100'
-        }`}
-      >
-        {release.published ? 'Published' : 'Publish'}
-      </button>
-      <button
-        onClick={onToggleShare}
-        disabled={generatingMarketing}
-        className={`hidden sm:block px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 ${
-          release.shared
-            ? 'bg-pink-500 text-white hover:bg-pink-600'
-            : 'border border-gray-300 text-gray-600 hover:bg-gray-100'
-        }`}
-      >
-        {generatingMarketing ? 'Working...' : release.shared ? 'Shared' : 'Share'}
-      </button>
-      <button
-        onClick={onEdit}
-        className="hidden sm:block px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
-      >
-        Edit
-      </button>
-      <button
-        onClick={onDelete}
-        className="hidden sm:block px-3 py-1 bg-red-100 text-red-700 rounded text-xs font-medium hover:bg-red-200"
-      >
-        Delete
-      </button>
-
-      {/* Menu button - always visible, contains all actions on mobile */}
+      {/* Menu button - on top */}
       <div className="relative">
         <button
           onClick={(e) => {
@@ -677,21 +645,11 @@ function ReleaseCardActions({
             <button
               onClick={() => {
                 onMenuClose()
-                onTogglePublish()
+                onDelete()
               }}
-              className="sm:hidden w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              className="sm:hidden w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
             >
-              {release.published ? '✓ Published' : 'Publish'}
-            </button>
-            <button
-              onClick={() => {
-                onMenuClose()
-                onToggleShare()
-              }}
-              disabled={generatingMarketing}
-              className="sm:hidden w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-            >
-              {generatingMarketing ? 'Working...' : release.shared ? '✓ Shared' : 'Share'}
+              Delete
             </button>
             <button
               onClick={() => {
@@ -705,12 +663,24 @@ function ReleaseCardActions({
             <button
               onClick={() => {
                 onMenuClose()
-                onDelete()
+                onTogglePublish()
               }}
-              className="sm:hidden w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
+              className="sm:hidden w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
             >
-              Delete
+              {release.published ? '✓ Published' : 'Publish'}
             </button>
+            {release.published && (
+              <button
+                onClick={() => {
+                  onMenuClose()
+                  onToggleShare()
+                }}
+                disabled={generatingMarketing}
+                className="sm:hidden w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              >
+                {generatingMarketing ? 'Working...' : release.shared ? '✓ Shared' : 'Share'}
+              </button>
+            )}
             <div className="sm:hidden border-t border-gray-100 my-1" />
 
             {/* Always visible menu items */}
@@ -739,6 +709,43 @@ function ReleaseCardActions({
           </div>
         )}
       </div>
+
+      {/* Desktop buttons: Delete, Edit, Publish, Share (Share only visible when published) */}
+      <button
+        onClick={onDelete}
+        className="hidden sm:block px-3 py-1 bg-red-100 text-red-700 rounded text-xs font-medium hover:bg-red-200"
+      >
+        Delete
+      </button>
+      <button
+        onClick={onEdit}
+        className="hidden sm:block px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
+      >
+        Edit
+      </button>
+      <button
+        onClick={onTogglePublish}
+        className={`hidden sm:block px-3 py-1 rounded text-xs font-medium transition-colors ${
+          release.published
+            ? 'bg-green-500 text-white hover:bg-green-600'
+            : 'border border-gray-300 text-gray-600 hover:bg-gray-100'
+        }`}
+      >
+        {release.published ? 'Published' : 'Publish'}
+      </button>
+      {release.published && (
+        <button
+          onClick={onToggleShare}
+          disabled={generatingMarketing}
+          className={`hidden sm:block px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 ${
+            release.shared
+              ? 'bg-pink-500 text-white hover:bg-pink-600'
+              : 'border border-gray-300 text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          {generatingMarketing ? 'Working...' : release.shared ? 'Shared' : 'Share'}
+        </button>
+      )}
     </div>
   )
-}
+})

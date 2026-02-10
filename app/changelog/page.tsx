@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { formatDateWithOptions } from '@/lib/text-utils'
 
 interface Release {
   id: string
@@ -14,20 +15,6 @@ interface Release {
   marketing_title: string | null
   message_timestamp?: string
   shared: boolean
-}
-
-function formatDate(date: string | Date, options?: Intl.DateTimeFormatOptions): string {
-  const dateObj = date instanceof Date
-    ? date
-    : new Date(typeof date === 'string' && !date.includes('T') ? date + 'T00:00:00' : date)
-
-  if (isNaN(dateObj.getTime())) return ''
-
-  return dateObj.toLocaleDateString('en-US', options || {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
 }
 
 function getDateKey(date: string | Date): string {
@@ -130,7 +117,7 @@ export default function ChangelogPage() {
             {sortedDates.map((date) => (
               <div key={date}>
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-                  {formatDate(date, {
+                  {formatDateWithOptions(date, {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',
@@ -155,7 +142,7 @@ export default function ChangelogPage() {
                         </span>
                         {release.message_timestamp && (
                           <span className="text-sm text-gray-500">
-                            {formatDate(release.message_timestamp, {
+                            {formatDateWithOptions(release.message_timestamp, {
                               month: 'short',
                               day: 'numeric',
                               hour: '2-digit',

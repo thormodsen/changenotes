@@ -2,40 +2,13 @@ import { notFound } from 'next/navigation'
 import { unstable_noStore as noStore } from 'next/cache'
 import Link from 'next/link'
 import { getReleaseById, getLinkedReleases, type RelatedRelease } from '@/lib/db/client'
+import { formatDisplayDate, formatShortDate } from '@/lib/text-utils'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 interface PageProps {
   params: Promise<{ id: string }>
-}
-
-function formatDate(date: string | Date): string {
-  const dateObj = date instanceof Date
-    ? date
-    : new Date(typeof date === 'string' && !date.includes('T') ? date + 'T00:00:00' : date)
-
-  if (isNaN(dateObj.getTime())) return ''
-
-  return dateObj.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
-
-function formatShortDate(date: string | Date): string {
-  const dateObj = date instanceof Date
-    ? date
-    : new Date(typeof date === 'string' && !date.includes('T') ? date + 'T00:00:00' : date)
-
-  if (isNaN(dateObj.getTime())) return ''
-
-  return dateObj.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-  })
 }
 
 const typeColors: Record<string, string> = {
@@ -134,7 +107,7 @@ export default async function ReleaseDetailPage({ params }: PageProps) {
             >
               {release.type}
             </span>
-            <span className="text-gray-500">{formatDate(release.date)}</span>
+            <span className="text-gray-500">{formatDisplayDate(release.date)}</span>
           </div>
 
           <h1 className="text-3xl font-bold text-gray-900 mb-4">{release.title}</h1>

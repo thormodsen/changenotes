@@ -85,7 +85,7 @@ export default function Home() {
   }
 
   return (
-    <main className="p-4 sm:p-6 max-w-7xl mx-auto">
+    <main className="min-h-screen bg-white p-4 sm:p-6 max-w-7xl mx-auto">
       <Header onLogout={handleLogout} />
       <Navigation />
 
