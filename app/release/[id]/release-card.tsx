@@ -55,46 +55,36 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
         className="relative bg-[#335FFF] overflow-hidden w-full h-full release-card flex flex-col"
       >
       
-      {/* Content */}
-      <div className="relative flex flex-col p-4 min-[480px]:p-7 flex-1 overflow-hidden">
-        {/* Header - Type badge and date */}
+      {/* 1. Header - Type badge and date (top-anchored) */}
+      <div className="flex items-center gap-4 flex-shrink-0 p-4 min-[480px]:p-7 pb-0 min-[480px]:pb-0">
         <div
-          className="flex items-center gap-4 flex-shrink-0"
+          className="rounded-full px-4 py-2 flex items-center gap-2"
+          style={{ backgroundColor: config.color }}
         >
-          <div
-            className="rounded-full px-4 py-2 flex items-center gap-2"
-            style={{ backgroundColor: config.color }}
-          >
-            <Icon className="w-4 h-4 text-[#0E2433]" />
-            <span className="text-[#0E2433] text-sm font-normal">{config.label}</span>
-          </div>
-          {formattedDate && <span className="text-white text-sm font-normal">{formattedDate}</span>}
+          <Icon className="w-4 h-4 text-[#0E2433]" />
+          <span className="text-[#0E2433] text-sm font-normal">{config.label}</span>
         </div>
+        {formattedDate && <span className="text-white text-sm font-normal">{formattedDate}</span>}
+      </div>
 
-        {/* Growing content area - title, description, lightbulb */}
-        <div className="flex-1 flex flex-col gap-8 overflow-hidden">
-          {/* Title - BIG */}
-          <h1
-            className="text-3xl font-extrabold text-white leading-tight min-[480px]:text-4xl"
-          >
-            {releaseNote.title}
-          </h1>
+      {/* Middle content: Headline, Description, Callout, CTA - evenly distributed */}
+      <div className="flex-1 flex flex-col justify-between px-4 min-[480px]:px-7 py-4 min-[480px]:py-6 overflow-hidden">
+        {/* 2. Title */}
+        <h1 className="text-3xl font-extrabold text-white leading-tight min-[480px]:text-4xl flex-shrink-0">
+          {releaseNote.title}
+        </h1>
 
-          {/* Description - prominent */}
-          {releaseNote.description && (
-            <p
-              className="text-base font-light text-white leading-relaxed min-[480px]:text-xl"
-            >
-              {releaseNote.description}
-            </p>
-          )}
+        {/* 3. Description */}
+        {releaseNote.description && (
+          <p className="text-base font-light text-white leading-relaxed min-[480px]:text-xl flex-shrink-0">
+            {releaseNote.description}
+          </p>
+        )}
 
-          {/* Why It Matters - as a highlight */}
-          {releaseNote.whyItMatters && (
-            <div
-              className="bg-[#294CCC] rounded-3xl p-4 why-it-matters-card"
-            >
-              <div className="flex items-center gap-2">
+        {/* 4. Why It Matters - Callout */}
+        {releaseNote.whyItMatters && (
+          <div className="bg-[#294CCC] rounded-3xl p-4 why-it-matters-card flex-shrink-0">
+            <div className="flex items-center gap-2">
               <div className="flex-shrink-0 overflow-visible" style={{ width: '46px', height: '56px' }}>
                 <DotLottieReact
                   src="/lotties/LightBulb-10s.lottie"
@@ -104,25 +94,21 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
                   style={{ width: '100%', height: '100%' }}
                 />
               </div>
-              {/* <LightBulbs width={56} height={56} className="clipboard-icon" /> */}
               <p className="text-white opacity-85 text-base font-light min-[480px]:text-lg">{releaseNote.whyItMatters}</p>
-
-              </div>
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        )}
 
-      {/* CTA - always above footer */}
-      <div className="flex-shrink-0 px-4 pb-4 min-[480px]:px-7 min-[480px]:pb-7 w-full">
+        {/* 5. CTA - always above footer */}
         <a
           href={`/changelog/${releaseNote.id}`}
-          className="block bg-white w-full text-center rounded-full py-3 release-card-button"
+          className="block bg-white w-full text-center rounded-full py-3 release-card-button flex-shrink-0"
         >
           <span className="text-[#0E2433] font-semibold text-xl">Learn more</span>
         </a>
       </div>
-              {/* Footer */}
+
+      {/* 6. Footer - bottom-anchored */}
       <div className="relative w-full h-[120px] min-[480px]:h-[160px] overflow-hidden flex-shrink-0">
           <CourtLines className="absolute inset-0 w-full h-full" />
           {/* Shadow - slides in, no rotation */}
