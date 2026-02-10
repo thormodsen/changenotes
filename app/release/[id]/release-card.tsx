@@ -114,12 +114,12 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
       </div>
 
       {/* CTA - always above footer */}
-      <div className="flex-shrink-0 px-4 pb-4 min-[480px]:px-7 min-[480px]:pb-7">
+      <div className="flex-shrink-0 px-4 pb-4 min-[480px]:px-7 min-[480px]:pb-7 w-full">
         <a
           href={`/changelog/${releaseNote.id}`}
-          className="bg-white w-full text-center rounded-full px-4 py-3 release-card-button"
+          className="block bg-white w-full text-center rounded-full py-3 release-card-button"
         >
-          <p className="text-[#0E2433] font-semibold text-xl">Learn more</p>
+          <span className="text-[#0E2433] font-semibold text-xl">Learn more</span>
         </a>
       </div>
               {/* Footer */}
