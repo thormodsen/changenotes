@@ -11,6 +11,7 @@
     "cli:build": "npm run build --prefix cli"
   },
   "dependencies": {
+    "@lottiefiles/dotlottie-react": "^0.17.14",
     "@vercel/analytics": "^1.6.1",
     "@vercel/functions": "^3.4.0",
     "@vercel/postgres": "^0.10.0",
