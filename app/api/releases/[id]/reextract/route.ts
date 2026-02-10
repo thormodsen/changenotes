@@ -68,6 +68,9 @@ export async function POST(
         id: r.id,
         title: r.title,
         description: r.description || '',
+        messageTs: r.message_id,
+        channelId: r.channel_id,
+        threadTs: r.thread_ts,
       }))
       await notifyNewReleases(notifiableReleases)
     }

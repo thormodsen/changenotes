@@ -4,12 +4,29 @@ export interface NotifiableRelease {
   id: string
   title: string
   description: string
+  messageTs: string
+  channelId: string
+  threadTs?: string | null
 }
 
 function getBaseUrl(): string {
   // Use APP_URL if set, otherwise fallback to production URL
   // Note: VERCEL_URL gives preview deployment URLs, not production
   return process.env.APP_URL || 'https://changenotes.vercel.app'
+}
+
+function buildSlackMessageUrl(channelId: string, messageTs: string, threadTs?: string | null): string {
+  // Slack message URLs use timestamp without the dot
+  const tsForUrl = messageTs.replace('.', '')
+  const baseUrl = `https://slack.com/archives/${channelId}/p${tsForUrl}`
+  
+  // If it's a thread reply, add the thread context
+  if (threadTs && threadTs !== messageTs) {
+    const threadTsForUrl = threadTs.replace('.', '')
+    return `${baseUrl}?thread_ts=${threadTsForUrl}&cid=${channelId}`
+  }
+  
+  return baseUrl
 }
 
 /**
@@ -31,7 +48,10 @@ export async function notifyNewReleases(releases: NotifiableRelease[]): Promise<
 
   const releaseLines = releases
     .slice(0, 10) // Cap at 10 to avoid huge messages
-    .map((r) => `*<${baseUrl}/changelog/${r.id}|${r.title}>*\n${r.description}`)
+    .map((r) => {
+      const slackUrl = buildSlackMessageUrl(r.channelId, r.messageTs, r.threadTs)
+      return `*<${baseUrl}/changelog/${r.id}|${r.title}>*\n${r.description}\n<${slackUrl}|View original message>`
+    })
     .join('\n\n')
 
   const suffix = releases.length > 10 ? `\n\n_...and ${releases.length - 10} more_` : ''
