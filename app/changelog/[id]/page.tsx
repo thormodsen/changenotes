@@ -12,21 +12,21 @@ interface PageProps {
 }
 
 const typeColors: Record<string, string> = {
-  'New Feature': 'bg-lime-100 text-lime-800',
-  Improvement: 'bg-blue-100 text-blue-800',
+  'New Feature': 'bg-[#CCFF00] text-[#0E2433]',
+  Improvement: 'bg-[#335FFF]/20 text-[#335FFF]',
   'Bug Fix': 'bg-red-100 text-red-800',
   Deprecation: 'bg-orange-100 text-orange-800',
   Rollback: 'bg-yellow-100 text-yellow-800',
-  Update: 'bg-gray-100 text-gray-800',
+  Update: 'bg-gray-100 text-[#0E2433]',
 }
 
 function RelatedReleaseCard({ release }: { release: RelatedRelease }) {
   return (
-    <article className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:border-gray-300 hover:shadow-md transition-all">
+    <article className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:border-[#335FFF]/50 hover:shadow-md transition-all">
       <div className="flex items-center gap-3 mb-3">
         <span
           className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-            typeColors[release.type] || 'bg-gray-100 text-gray-800'
+            typeColors[release.type] || 'bg-gray-100 text-[#0E2433]'
           }`}
         >
           {release.type}
@@ -34,7 +34,7 @@ function RelatedReleaseCard({ release }: { release: RelatedRelease }) {
         <span className="text-sm text-gray-500">{formatShortDate(release.date)}</span>
       </div>
       <Link href={`/changelog/${release.id}`} className="block group">
-        <h3 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+        <h3 className="text-xl font-semibold text-[#0E2433] mb-2 group-hover:text-[#335FFF] transition-colors">
           {release.title}
         </h3>
       </Link>
@@ -42,9 +42,9 @@ function RelatedReleaseCard({ release }: { release: RelatedRelease }) {
         <p className="text-gray-700 leading-relaxed mb-4">{release.description}</p>
       )}
       {release.why_this_matters && (
-        <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
-          <p className="text-sm font-medium text-blue-900 mb-1">Why this matters</p>
-          <p className="text-sm text-blue-800">{release.why_this_matters}</p>
+        <div className="mt-4 p-4 bg-[#335FFF]/10 rounded-lg border border-[#335FFF]/20">
+          <p className="text-sm font-medium text-[#0E2433] mb-1">Why this matters</p>
+          <p className="text-sm text-[#0E2433]/80">{release.why_this_matters}</p>
         </div>
       )}
       {release.impact && (
@@ -77,7 +77,7 @@ export default async function ReleaseDetailPage({ params }: PageProps) {
       <div className="max-w-3xl mx-auto px-6 py-12">
         <Link
           href="/changelog"
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-8"
+          className="inline-flex items-center gap-2 text-[#0E2433]/60 hover:text-[#335FFF] mb-8"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -87,11 +87,11 @@ export default async function ReleaseDetailPage({ params }: PageProps) {
 
         {/* Parent release banner */}
         {linked.parent && (
-          <div className="mb-6 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
-            <p className="text-sm text-indigo-700 mb-2">This is a rollout update for:</p>
+          <div className="mb-6 p-4 bg-[#335FFF]/10 rounded-lg border border-[#335FFF]/20">
+            <p className="text-sm text-[#0E2433]/70 mb-2">This is a rollout update for:</p>
             <Link
               href={`/changelog/${linked.parent.id}`}
-              className="font-semibold text-indigo-900 hover:text-indigo-700 transition-colors"
+              className="font-semibold text-[#0E2433] hover:text-[#335FFF] transition-colors"
             >
               {linked.parent.title} →
             </Link>
@@ -110,16 +110,16 @@ export default async function ReleaseDetailPage({ params }: PageProps) {
             <span className="text-gray-500">{formatDisplayDate(release.date)}</span>
           </div>
 
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">{release.title}</h1>
+          <h1 className="text-3xl font-bold text-[#0E2433] mb-4">{release.title}</h1>
 
           {release.description && (
             <p className="text-lg text-gray-700 leading-relaxed mb-6">{release.description}</p>
           )}
 
           {release.why_this_matters && (
-            <div className="p-5 bg-blue-50 rounded-lg border border-blue-100 mb-4">
-              <p className="text-sm font-semibold text-blue-900 mb-2">Why this matters</p>
-              <p className="text-blue-800">{release.why_this_matters}</p>
+            <div className="p-5 bg-[#335FFF]/10 rounded-lg border border-[#335FFF]/20 mb-4">
+              <p className="text-sm font-semibold text-[#0E2433] mb-2">Why this matters</p>
+              <p className="text-[#0E2433]/80">{release.why_this_matters}</p>
             </div>
           )}
 
@@ -134,7 +134,7 @@ export default async function ReleaseDetailPage({ params }: PageProps) {
             <div className="mt-8 pt-6 border-t border-gray-100">
               <Link
                 href={`/release/${release.id}`}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-pink-100 text-pink-700 rounded-lg text-sm font-medium hover:bg-pink-200 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#CCFF00] text-[#0E2433] rounded-lg text-sm font-medium hover:bg-[#CCFF00]/80 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
@@ -151,7 +151,7 @@ export default async function ReleaseDetailPage({ params }: PageProps) {
             {/* Siblings (rollout updates in same thread) */}
             {linked.siblings.length > 0 && (
               <div className="mb-8">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Rollout updates</h3>
+                <h3 className="text-lg font-semibold text-[#0E2433] mb-4">Rollout updates</h3>
                 <div className="grid gap-3">
                   {linked.siblings.map((sibling) => (
                     <RelatedReleaseCard key={sibling.id} release={sibling} />
@@ -163,7 +163,7 @@ export default async function ReleaseDetailPage({ params }: PageProps) {
             {/* Related releases (keyword match) */}
             {linked.related.length > 0 && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Related releases</h3>
+                <h3 className="text-lg font-semibold text-[#0E2433] mb-4">Related releases</h3>
                 <div className="grid gap-3">
                   {linked.related.map((related) => (
                     <RelatedReleaseCard key={related.id} release={related} />

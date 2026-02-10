@@ -31,12 +31,12 @@ function getDateKey(date: string | Date): string {
 }
 
 const typeColors: Record<string, string> = {
-  'New Feature': 'bg-lime-100 text-lime-800',
-  Improvement: 'bg-blue-100 text-blue-800',
+  'New Feature': 'bg-[#CCFF00] text-[#0E2433]',
+  Improvement: 'bg-[#335FFF]/20 text-[#335FFF]',
   'Bug Fix': 'bg-red-100 text-red-800',
   Deprecation: 'bg-orange-100 text-orange-800',
   Rollback: 'bg-yellow-100 text-yellow-800',
-  Update: 'bg-gray-100 text-gray-800',
+  Update: 'bg-gray-100 text-[#0E2433]',
 }
 
 export default function ChangelogPage() {
@@ -104,8 +104,8 @@ export default function ChangelogPage() {
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-6 py-12">
         <header className="mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Changelog</h1>
-          <p className="text-lg text-gray-600">Latest updates and improvements</p>
+          <h1 className="text-4xl font-bold text-[#0E2433] mb-2">Changelog</h1>
+          <p className="text-lg text-[#0E2433]/60">Latest updates and improvements</p>
         </header>
 
         {sortedDates.length === 0 ? (
@@ -116,7 +116,7 @@ export default function ChangelogPage() {
           <div className="space-y-12">
             {sortedDates.map((date) => (
               <div key={date}>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                <h2 className="text-2xl font-semibold text-[#0E2433] mb-4">
                   {formatDateWithOptions(date, {
                     weekday: 'long',
                     year: 'numeric',
@@ -130,7 +130,7 @@ export default function ChangelogPage() {
                     <article
                       key={release.id}
                       id={`release-${release.id}`}
-                      className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm scroll-mt-6 hover:border-gray-300 hover:shadow-md transition-all"
+                      className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm scroll-mt-6 hover:border-[#335FFF]/50 hover:shadow-md transition-all"
                     >
                       <div className="flex items-center gap-3 mb-3">
                         <span
@@ -154,7 +154,7 @@ export default function ChangelogPage() {
                       </div>
 
                       <a href={`/changelog/${release.id}`} className="block group">
-                        <h3 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">{release.title}</h3>
+                        <h3 className="text-xl font-semibold text-[#0E2433] mb-2 group-hover:text-[#335FFF] transition-colors">{release.title}</h3>
                       </a>
 
                       {release.description && (
@@ -162,9 +162,9 @@ export default function ChangelogPage() {
                       )}
 
                       {release.why_this_matters && (
-                        <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                          <p className="text-sm font-medium text-blue-900 mb-1">Why this matters</p>
-                          <p className="text-sm text-blue-800">{release.why_this_matters}</p>
+                        <div className="mt-4 p-4 bg-[#335FFF]/10 rounded-lg border border-[#335FFF]/20">
+                          <p className="text-sm font-medium text-[#0E2433] mb-1">Why this matters</p>
+                          <p className="text-sm text-[#0E2433]/80">{release.why_this_matters}</p>
                         </div>
                       )}
 
@@ -181,7 +181,7 @@ export default function ChangelogPage() {
                             href={`/release/${release.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-pink-100 text-pink-700 rounded-lg text-sm font-medium hover:bg-pink-200 transition-colors"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#CCFF00] text-[#0E2433] rounded-lg text-sm font-medium hover:bg-[#CCFF00]/80 transition-colors"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
@@ -200,7 +200,7 @@ export default function ChangelogPage() {
               <div className="text-center pt-4">
                 <button
                   onClick={loadMore}
-                  className="px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+                  className="px-6 py-3 bg-[#335FFF] text-white rounded-lg hover:bg-[#294CCC] transition-colors"
                 >
                   Load more ({total - releases.length} remaining)
                 </button>
