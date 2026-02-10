@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import './release-card.css'
 import { Newspaper, Star, CheckCircle, Zap, Rocket, PartyPopper } from 'lucide-react'
-import { LightBulbs, BackgroundReleaseCard } from '@/app/assets/icons'
+import { BackgroundReleaseCard } from '@/app/assets/icons'
 import { motion } from 'framer-motion'
 import React from 'react';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
@@ -30,25 +29,7 @@ const typeConfig: Record<string, { icon: typeof Newspaper; label: string; color:
   'Rollback': { icon: PartyPopper, label: 'Rollback', color: '#FFB930' },
 }
 
-const CARD_WIDTH = 448
-const CARD_HEIGHT = CARD_WIDTH * 16 / 9 // ~796px
-
 export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
-  const [scale, setScale] = useState(1)
-
-  useEffect(() => {
-    const updateScale = () => {
-      const vh = window.innerHeight * 0.95
-      const vw = window.innerWidth * 0.95
-      const scaleByHeight = vh / CARD_HEIGHT
-      const scaleByWidth = vw / CARD_WIDTH
-      setScale(Math.min(1, scaleByHeight, scaleByWidth))
-    }
-    updateScale()
-    window.addEventListener('resize', updateScale)
-    return () => window.removeEventListener('resize', updateScale)
-  }, [])
-
   const config = typeConfig[releaseNote.type] || typeConfig['Update']
   const Icon = config.icon
 
@@ -66,26 +47,16 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
     : ''
 
   return (
-    <div
-      style={{
-        width: CARD_WIDTH * scale,
-        height: CARD_HEIGHT * scale,
-      }}
-    >
+    <div className="w-full min-w-[288px] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px]">
       <motion.div
         initial={{ opacity: 0, y: 15, filter: 'blur(10px)' }}
         animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
         transition={{ duration: 0.3, ease: 'easeOut' }}
-        className="relative bg-[#335FFF] overflow-hidden origin-top-left release-card"
-        style={{
-          width: CARD_WIDTH,
-          height: CARD_HEIGHT,
-          transform: `scale(${scale})`,
-        }}
+        className="relative bg-[#335FFF] overflow-hidden w-full h-full release-card"
       >
       
       {/* Content */}
-      <div className="relative flex flex-col p-7 gap-8">
+      <div className="relative flex flex-col p-4 gap-8 min-[480px]:p-7">
         {/* Header - Type badge and date */}
         <div
           className="flex items-center gap-4"
@@ -104,7 +75,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
         <div className="flex-1 flex flex-col">
           {/* Title - BIG */}
           <h1
-            className="text-4xl sm:text-4xl font-extrabold text-white leading-tight mb-4"
+            className="text-3xl font-extrabold text-white leading-tight mb-4 min-[480px]:text-4xl"
           >
             {releaseNote.title}
           </h1>
@@ -112,7 +83,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
           {/* Description - prominent */}
           {releaseNote.description && (
             <p
-              className="text-xl font-light text-white leading-relaxed mb-8"
+              className="text-base font-light text-white leading-relaxed mb-8 min-[480px]:text-xl"
             >
               {releaseNote.description}
             </p>
@@ -124,16 +95,16 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
               className="bg-[#294CCC] rounded-3xl p-4 why-it-matters-card"
             >
               <div className="flex items-center gap-2">
-              <div className="flex-shrink-0 overflow-visible" style={{ width: '56px', height: '56px' }}>
+              <div className="flex-shrink-0 overflow-visible" style={{ width: '46px', height: '56px' }}>
                 <DotLottieReact
-                  src="/lotties/LightBulb.lottie"
+                  src="/lotties/LightBulb-10s.lottie"
                   loop
                   autoplay
                   style={{ width: '100%', height: '100%' }}
                 />
               </div>
               {/* <LightBulbs width={56} height={56} className="clipboard-icon" /> */}
-              <p className="text-white opacity-85 text-lg font-light">{releaseNote.whyItMatters}</p>
+              <p className="text-white opacity-85 text-base font-light min-[480px]:text-lg">{releaseNote.whyItMatters}</p>
   
               </div>
             </div>
