@@ -47,13 +47,12 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
     : ''
 
   return (
-    <div className="w-full min-w-[288px] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px] h-full">
-      <motion.div
-        initial={{ opacity: 0, y: 15, filter: 'blur(10px)' }}
-        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-        transition={{ duration: 0.3, ease: 'easeOut' }}
-        className="relative bg-[#335FFF] overflow-hidden w-full h-full release-card flex flex-col"
-      >
+    <motion.div
+      initial={{ opacity: 0, y: 15, filter: 'blur(10px)' }}
+      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      className="relative bg-[#335FFF] overflow-hidden w-full min-w-[288px] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px] h-full max-h-[800px] flex flex-col release-card"
+    >
       
       {/* 1. Header - Type badge and date (top-anchored) */}
       <div className="flex items-center gap-4 flex-shrink-0 p-4 min-[480px]:p-7 pb-0 min-[480px]:pb-0">
@@ -67,39 +66,45 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
         {formattedDate && <span className="text-white text-sm font-normal">{formattedDate}</span>}
       </div>
 
-      {/* Middle content: Headline, Description, Callout, CTA - evenly distributed */}
-      <div className="flex-1 flex flex-col justify-between px-4 min-[480px]:px-7 py-4 min-[480px]:py-6 overflow-hidden">
-        {/* 2. Title */}
-        <h1 className="text-3xl font-extrabold text-white leading-tight min-[480px]:text-4xl flex-shrink-0">
-          {releaseNote.title}
-        </h1>
+      {/* Middle content: Headline, Description, Callout, CTA */}
+      <div className="flex flex-col px-4 min-[480px]:px-7 py-4 min-[480px]:py-6 flex-1 min-h-0">
+        {/* Text content group - stays at top */}
+        <div className="flex flex-col gap-5 flex-shrink-0">
+          {/* 2. Title */}
+          <h1 className="text-3xl font-extrabold text-white leading-tight min-[480px]:text-4xl">
+            {releaseNote.title}
+          </h1>
 
-        {/* 3. Description */}
-        {releaseNote.description && (
-          <p className="text-base font-light text-white leading-relaxed min-[480px]:text-xl flex-shrink-0">
-            {releaseNote.description}
-          </p>
-        )}
+          {/* 3. Description */}
+          {releaseNote.description && (
+            <p className="text-base font-light text-white leading-relaxed min-[480px]:text-xl">
+              {releaseNote.description}
+            </p>
+          )}
 
-        {/* 4. Why It Matters - Callout */}
-        {releaseNote.whyItMatters && (
-          <div className="bg-[#294CCC] rounded-3xl p-4 why-it-matters-card flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="flex-shrink-0 overflow-visible" style={{ width: '46px', height: '56px' }}>
-                <DotLottieReact
-                  src="/lotties/LightBulb-10s.lottie"
-                  loop
-                  autoplay
-                  speed={0.9}
-                  style={{ width: '100%', height: '100%' }}
-                />
+          {/* 4. Why It Matters - Callout */}
+          {releaseNote.whyItMatters && (
+            <div className="bg-[#294CCC] rounded-3xl p-4 why-it-matters-card">
+              <div className="flex items-center gap-2">
+                <div className="flex-shrink-0 overflow-visible" style={{ width: '46px', height: '56px' }}>
+                  <DotLottieReact
+                    src="/lotties/LightBulb-10s.lottie"
+                    loop
+                    autoplay
+                    speed={0.9}
+                    style={{ width: '100%', height: '100%' }}
+                  />
+                </div>
+                <p className="text-white opacity-85 text-base font-light min-[480px]:text-lg">{releaseNote.whyItMatters}</p>
               </div>
-              <p className="text-white opacity-85 text-base font-light min-[480px]:text-lg">{releaseNote.whyItMatters}</p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* 5. CTA - always above footer */}
+        {/* Spacer to push CTA down */}
+        <div className="flex-1 min-h-4" />
+
+        {/* 5. CTA - pushed to bottom of middle section */}
         <a
           href={`/changelog/${releaseNote.id}`}
           className="block bg-white w-full text-center rounded-full py-3 release-card-button flex-shrink-0"
@@ -138,7 +143,6 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
             <TennisBall className="w-full h-full" />
           </motion.div>
         </div>
-      </motion.div>
-    </div>
+    </motion.div>
   )
 }
