@@ -66,45 +66,48 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
         {formattedDate && <span className="text-white text-sm font-normal">{formattedDate}</span>}
       </div>
 
-      {/* Middle content: Headline, Description, Callout, CTA */}
+      {/* Middle content: Header, Description, Callout, CTA */}
       <div className="flex flex-col px-4 min-[480px]:px-7 py-4 min-[480px]:py-6 flex-1 min-h-0">
-        {/* Text content group - stays at top */}
-        <div className="flex flex-col gap-5 flex-shrink-0">
-          {/* 2. Title */}
-          <h1 className="text-3xl font-extrabold text-white leading-tight min-[480px]:text-4xl">
-            {releaseNote.title}
-          </h1>
+        {/* 2. Title - stays at top */}
+        <h1 className="text-3xl font-extrabold text-white leading-tight min-[480px]:text-4xl flex-shrink-0">
+          {releaseNote.title}
+        </h1>
 
-          {/* 3. Description */}
-          {releaseNote.description && (
-            <p className="text-base font-light text-white leading-relaxed min-[480px]:text-xl">
-              {releaseNote.description}
-            </p>
-          )}
+        {/* Spacer to distribute description between header and callout */}
+        <div className="flex-1 min-h-4" />
 
-          {/* 4. Why It Matters - Callout */}
-          {releaseNote.whyItMatters && (
-            <div className="bg-[#294CCC] rounded-3xl p-4 why-it-matters-card">
-              <div className="flex items-center gap-2">
-                <div className="flex-shrink-0 overflow-visible" style={{ width: '46px', height: '56px' }}>
-                  <DotLottieReact
-                    src="/lotties/LightBulb-10s.lottie"
-                    loop
-                    autoplay
-                    speed={0.9}
-                    style={{ width: '100%', height: '100%' }}
-                  />
-                </div>
-                <p className="text-white opacity-85 text-base font-light min-[480px]:text-lg">{releaseNote.whyItMatters}</p>
+        {/* 3. Description - distributed in middle */}
+        {releaseNote.description && (
+          <p className="text-base font-light text-white leading-relaxed min-[480px]:text-xl flex-shrink-0">
+            {releaseNote.description}
+          </p>
+        )}
+
+        {/* Spacer to distribute callout between description and CTA */}
+        <div className="flex-1 min-h-4" />
+
+        {/* 4. Why It Matters - Callout - distributed in middle */}
+        {releaseNote.whyItMatters && (
+          <div className="bg-[#294CCC] rounded-3xl p-4 why-it-matters-card flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="flex-shrink-0 overflow-visible" style={{ width: '46px', height: '56px' }}>
+                <DotLottieReact
+                  src="/lotties/LightBulb-10s.lottie"
+                  loop
+                  autoplay
+                  speed={0.9}
+                  style={{ width: '100%', height: '100%' }}
+                />
               </div>
+              <p className="text-white opacity-85 text-base font-light min-[480px]:text-lg">{releaseNote.whyItMatters}</p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Spacer to push CTA down */}
         <div className="flex-1 min-h-4" />
 
-        {/* 5. CTA - pushed to bottom of middle section */}
+        {/* 5. CTA - stays above footer */}
         <a
           href={`/changelog/${releaseNote.id}`}
           className="block bg-white w-full text-center rounded-full py-3 release-card-button flex-shrink-0"
