@@ -56,10 +56,10 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
       >
       
       {/* Content */}
-      <div className="relative flex flex-col p-4 gap-8 min-[480px]:p-7 flex-1 overflow-hidden">
+      <div className="relative flex flex-col p-4 min-[480px]:p-7 flex-1 overflow-hidden">
         {/* Header - Type badge and date */}
         <div
-          className="flex items-center gap-4"
+          className="flex items-center gap-4 flex-shrink-0"
         >
           <div
             className="rounded-full px-4 py-2 flex items-center gap-2"
@@ -71,11 +71,11 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
           {formattedDate && <span className="text-white text-sm font-normal">{formattedDate}</span>}
         </div>
 
-        {/* Main content - centered */}
-        <div className="flex-1 flex flex-col">
+        {/* Growing content area - title, description, lightbulb */}
+        <div className="flex-1 flex flex-col gap-8 overflow-hidden">
           {/* Title - BIG */}
           <h1
-            className="text-3xl font-extrabold text-white leading-tight mb-4 min-[480px]:text-4xl"
+            className="text-3xl font-extrabold text-white leading-tight min-[480px]:text-4xl"
           >
             {releaseNote.title}
           </h1>
@@ -83,7 +83,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
           {/* Description - prominent */}
           {releaseNote.description && (
             <p
-              className="text-base font-light text-white leading-relaxed mb-8 min-[480px]:text-xl"
+              className="text-base font-light text-white leading-relaxed min-[480px]:text-xl"
             >
               {releaseNote.description}
             </p>
@@ -106,21 +106,21 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
               </div>
               {/* <LightBulbs width={56} height={56} className="clipboard-icon" /> */}
               <p className="text-white opacity-85 text-base font-light min-[480px]:text-lg">{releaseNote.whyItMatters}</p>
-  
+
               </div>
             </div>
           )}
-          <div
-          className="flex items-center justify-center pt-6"
+        </div>
+      </div>
+
+      {/* CTA - always above footer */}
+      <div className="flex-shrink-0 px-4 pb-4 min-[480px]:px-7 min-[480px]:pb-7">
+        <a
+          href={`/changelog/${releaseNote.id}`}
+          className="bg-white w-full text-center rounded-full px-4 py-3 release-card-button"
         >
-          <a
-            href={`/changelog/${releaseNote.id}`}
-            className="bg-white w-full text-center rounded-full px-4 py-3 release-card-button"
-          >
-            <p className="text-[#0E2433] font-semibold text-xl">Learn more</p>
-          </a>
-        </div>
-        </div>
+          <p className="text-[#0E2433] font-semibold text-xl">Learn more</p>
+        </a>
       </div>
               {/* Footer */}
       <div className="relative w-full h-[120px] min-[480px]:h-[160px] overflow-hidden flex-shrink-0">
