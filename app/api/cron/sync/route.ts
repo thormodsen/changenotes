@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
       }
       const id = await insertRelease(release)
       if (id) {
-        insertedReleases.push({ id, title: release.title, type: release.type })
+        insertedReleases.push({ id, title: release.title, description: release.description })
       }
     }
 

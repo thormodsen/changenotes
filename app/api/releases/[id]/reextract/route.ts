@@ -67,7 +67,7 @@ export async function POST(
       const notifiableReleases: NotifiableRelease[] = newReleases.map(r => ({
         id: r.id,
         title: r.title,
-        type: r.type,
+        description: r.description || '',
       }))
       await notifyNewReleases(notifiableReleases)
     }

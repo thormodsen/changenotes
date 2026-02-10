@@ -3,7 +3,7 @@ import { loadSlackConfig } from './config'
 export interface NotifiableRelease {
   id: string
   title: string
-  type: string
+  description: string
 }
 
 function getBaseUrl(): string {
@@ -31,12 +31,12 @@ export async function notifyNewReleases(releases: NotifiableRelease[]): Promise<
 
   const releaseLines = releases
     .slice(0, 10) // Cap at 10 to avoid huge messages
-    .map((r) => `• <${baseUrl}/changelog/${r.id}|${r.title}> (${r.type})`)
-    .join('\n')
+    .map((r) => `*<${baseUrl}/changelog/${r.id}|${r.title}>*\n${r.description}`)
+    .join('\n\n')
 
-  const suffix = releases.length > 10 ? `\n_...and ${releases.length - 10} more_` : ''
+  const suffix = releases.length > 10 ? `\n\n_...and ${releases.length - 10} more_` : ''
 
-  const text = `📝 *${releases.length} new release${releases.length === 1 ? '' : 's'} extracted*\n${releaseLines}${suffix}`
+  const text = `${releaseLines}${suffix}`
 
   try {
     console.log(`[Notify] Posting message: ${text.substring(0, 100)}...`)
