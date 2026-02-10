@@ -47,16 +47,16 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
     : ''
 
   return (
-    <div className="w-full min-w-[288px] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px]">
+    <div className="w-full min-w-[288px] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px] max-h-[100dvh]">
       <motion.div
         initial={{ opacity: 0, y: 15, filter: 'blur(10px)' }}
         animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
         transition={{ duration: 0.3, ease: 'easeOut' }}
-        className="relative bg-[#335FFF] overflow-hidden w-full h-full release-card"
+        className="relative bg-[#335FFF] overflow-hidden w-full h-full max-h-[100dvh] release-card flex flex-col"
       >
       
       {/* Content */}
-      <div className="relative flex flex-col p-4 gap-8 min-[480px]:p-7">
+      <div className="relative flex flex-col p-4 gap-8 min-[480px]:p-7 flex-1 overflow-y-auto">
         {/* Header - Type badge and date */}
         <div
           className="flex items-center gap-4"
@@ -123,7 +123,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
         </div>
       </div>
               {/* Footer */}
-      <div className="relative w-full h-[120px] min-[480px]:h-[160px] overflow-hidden">
+      <div className="relative w-full h-[120px] min-[480px]:h-[160px] overflow-hidden flex-shrink-0">
           <CourtLines className="absolute inset-0 w-full h-full" />
           {/* Shadow - slides in, no rotation */}
           <motion.div
