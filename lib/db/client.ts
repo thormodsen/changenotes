@@ -243,6 +243,14 @@ export async function getExistingReleaseMessageIds(channelId: string): Promise<M
   return new Map(result.rows.map((r) => [r.message_id, r.edited_ts]))
 }
 
+export async function getKnownThreadIds(channelId: string): Promise<string[]> {
+  const result = await sql<{ thread_ts: string }>`
+    SELECT DISTINCT thread_ts FROM releases
+    WHERE channel_id = ${channelId} AND thread_ts IS NOT NULL
+  `
+  return result.rows.map((r) => r.thread_ts)
+}
+
 export async function getReleasesByMessageId(messageId: string): Promise<Release[]> {
   const result = await sql<Release>`
     SELECT * FROM releases WHERE message_id = ${messageId}

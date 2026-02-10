@@ -9,6 +9,8 @@ const publicRoutes = [
   '/release',
   '/changelog',
   '/api/auth',
+  '/api/slack/events',
+  '/api/cron/sync',
 ]
 
 // API routes that allow public read access (for public changelog page)

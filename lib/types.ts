@@ -55,4 +55,4 @@ export type ReleaseType =
   | 'Rollback'
   | 'Update'
 
-export type DatePreset = '7days' | '30days' | 'month'
+export type DatePreset = 'today' | '7days' | '30days' | 'month'

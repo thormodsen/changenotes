@@ -13,6 +13,7 @@ interface FilterPanelProps {
 }
 
 const PRESETS: { key: DatePreset; label: string }[] = [
+  { key: 'today', label: 'Today' },
   { key: '7days', label: 'Last 7 days' },
   { key: '30days', label: 'Last 30 days' },
   { key: 'month', label: 'This month' },
@@ -40,6 +41,9 @@ export function FilterPanel({
 
     let start: string
     switch (preset) {
+      case 'today':
+        start = end
+        break
       case '7days':
         start = formatDate(new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000))
         break
