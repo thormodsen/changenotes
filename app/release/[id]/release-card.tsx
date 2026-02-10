@@ -56,7 +56,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
       >
       
       {/* Content */}
-      <div className="relative flex flex-col p-4 gap-8 min-[480px]:p-7 flex-1 overflow-y-auto">
+      <div className="relative flex flex-col p-4 gap-8 min-[480px]:p-7 flex-1 overflow-hidden">
         {/* Header - Type badge and date */}
         <div
           className="flex items-center gap-4"
