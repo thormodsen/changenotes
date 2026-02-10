@@ -21,8 +21,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className={`${inter.className} bg-gray-50 min-h-screen`}>
+    <html lang="en" className={`${inter.variable} bg-[#0E2433]`}>
+      <body className={`${inter.className} bg-[#0E2433] min-h-screen`}>
         {children}
         <SpeedInsights />
         <Analytics />
