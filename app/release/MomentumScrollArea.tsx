@@ -86,8 +86,8 @@ export function MomentumScrollArea({ children }: { children: ReactNode }) {
 
       setScroll((prev) => {
         const bounds = getScrollBounds(content, viewport)
-        const nextX = clamp(prev.x + vx, 0, bounds.maxX)
-        const nextY = clamp(prev.y + vy, 0, bounds.maxY)
+        const nextX = clamp(prev.x - vx, 0, bounds.maxX)
+        const nextY = clamp(prev.y - vy, 0, bounds.maxY)
         velocityRef.current = {
           x: nextX !== prev.x ? vx * FRICTION : 0,
           y: nextY !== prev.y ? vy * FRICTION : 0,
