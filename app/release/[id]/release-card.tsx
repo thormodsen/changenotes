@@ -115,7 +115,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
       initial={{ opacity: 0, y: 15, filter: 'blur(10px)' }}
       animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="relative bg-[#335FFF] overflow-hidden w-full min-w-[288px] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px] min-h-[95dvh] flex flex-col release-card"
+      className="relative bg-[#335FFF] overflow-hidden w-full min-w-[288px] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px] min-h-[50dvh] min-[480px]:min-h-[65dvh] flex flex-col release-card"
     >
 
       {/* 1. Header - Type badge and date (top-anchored) */}
@@ -135,7 +135,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
           onClick={handleShareCard}
           disabled={isSharing}
           data-share-button="true"
-          className="share-button relative ml-auto inline-flex items-center gap-2 rounded-full bg-white/20 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/30 disabled:cursor-not-allowed disabled:opacity-70"
+          className="share-button relative ml-auto inline-flex items-center gap-2 max-[374px]:gap-0 rounded-full bg-white/20 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/30 disabled:cursor-not-allowed disabled:opacity-70"
           transition={{ layout: { duration: 0.22, ease: 'easeOut' } }}
         >
           <span className="pointer-events-none absolute opacity-0 whitespace-nowrap">
@@ -144,7 +144,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
           </span>
           <Share className="h-4 w-4" />
           <motion.span
-            className="relative inline-flex overflow-hidden whitespace-nowrap"
+            className="relative inline-flex overflow-hidden whitespace-nowrap max-[374px]:hidden"
             initial={false}
             animate={{ width: isSharing ? labelWidths.sharing : labelWidths.share }}
             transition={{ duration: 0.1, ease: 'easeInOut' }}
@@ -169,7 +169,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
       )}
 
       {/* Middle content: Header, Description, Callout, CTA */}
-      <div className="flex gap-6 flex-col px-4 min-[480px]:px-7 py-4 min-[480px]:py-6 flex-1 min-h-0">
+      <div className="flex gap-6 flex-col px-4 min-[480px]:px-7 py-4 min-[480px]:py-6 flex-1 min-h-0 justify-between">
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-4">
             {/* 2. Title - stays at top */}
