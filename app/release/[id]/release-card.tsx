@@ -1,10 +1,11 @@
 'use client'
 
 import './release-card.css'
-import { Newspaper, Star, CheckCircle, Zap, Rocket, PartyPopper } from 'lucide-react'
+import { Newspaper, Star, CheckCircle, Zap, Rocket, PartyPopper, Share } from 'lucide-react'
 import { CourtLines, TennisBall, TennisBallShadow } from '@/app/assets/icons'
-import { motion } from 'framer-motion'
-import React from 'react';
+import { AnimatePresence, motion } from 'framer-motion'
+import { toPng } from 'html-to-image'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 interface ReleaseNote {
@@ -32,6 +33,12 @@ const typeConfig: Record<string, { icon: typeof Newspaper; label: string; color:
 export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
   const config = typeConfig[releaseNote.type] || typeConfig['Update']
   const Icon = config.icon
+  const cardRef = useRef<HTMLDivElement>(null)
+  const shareLabelRef = useRef<HTMLSpanElement>(null)
+  const sharingLabelRef = useRef<HTMLSpanElement>(null)
+  const [isSharing, setIsSharing] = useState(false)
+  const [shareError, setShareError] = useState<string | null>(null)
+  const [labelWidths, setLabelWidths] = useState({ share: 0, sharing: 0 })
 
   const dateValue = releaseNote.date instanceof Date
     ? releaseNote.date
@@ -46,8 +53,65 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
     })
     : ''
 
+  useLayoutEffect(() => {
+    const measureLabels = () => {
+      const shareWidth = shareLabelRef.current?.offsetWidth ?? 0
+      const sharingWidth = sharingLabelRef.current?.offsetWidth ?? 0
+      setLabelWidths({ share: shareWidth, sharing: sharingWidth })
+    }
+
+    measureLabels()
+    window.addEventListener('resize', measureLabels)
+    return () => window.removeEventListener('resize', measureLabels)
+  }, [])
+
+  const handleShareCard = useCallback(async () => {
+    if (!cardRef.current || isSharing) return
+
+    setIsSharing(true)
+    setShareError(null)
+
+    try {
+      const dataUrl = await toPng(cardRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: '#335FFF',
+        filter: (node) => {
+          if (!(node instanceof HTMLElement)) return true
+          return node.dataset.shareButton !== 'true'
+        },
+      })
+
+      const response = await fetch(dataUrl)
+      const blob = await response.blob()
+      const filename = `release-${releaseNote.id}.png`
+      const file = new File([blob], filename, { type: 'image/png' })
+
+      const sharePayload: ShareData = {
+        title: releaseNote.title,
+        text: releaseNote.title,
+        files: [file],
+      }
+
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share(sharePayload)
+      } else {
+        const link = document.createElement('a')
+        link.href = dataUrl
+        link.download = filename
+        link.click()
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      setShareError('Could not share this card right now.')
+    } finally {
+      setIsSharing(false)
+    }
+  }, [isSharing, releaseNote.id, releaseNote.title])
+
   return (
     <motion.div
+      ref={cardRef}
       initial={{ opacity: 0, y: 15, filter: 'blur(10px)' }}
       animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -64,7 +128,45 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
           <span className="text-[#0E2433] text-sm font-normal">{config.label}</span>
         </div>
         {formattedDate && <span className="text-white text-sm font-normal">{formattedDate}</span>}
+        <motion.button
+          layout
+          style={{ originX: 1 }}
+          type="button"
+          onClick={handleShareCard}
+          disabled={isSharing}
+          data-share-button="true"
+          className="share-button relative ml-auto inline-flex items-center gap-2 rounded-full bg-white/20 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/30 disabled:cursor-not-allowed disabled:opacity-70"
+          transition={{ layout: { duration: 0.22, ease: 'easeOut' } }}
+        >
+          <span className="pointer-events-none absolute opacity-0 whitespace-nowrap">
+            <span ref={shareLabelRef}>Share</span>
+            <span ref={sharingLabelRef}>Sharing...</span>
+          </span>
+          <Share className="h-4 w-4" />
+          <motion.span
+            className="relative inline-flex overflow-hidden whitespace-nowrap"
+            initial={false}
+            animate={{ width: isSharing ? labelWidths.sharing : labelWidths.share }}
+            transition={{ duration: 0.1, ease: 'easeInOut' }}
+          >
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={isSharing ? 'sharing' : 'share'}
+                initial={{ y: 4, opacity: 0, filter: 'blur(10px)' }}
+                animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
+                exit={{ y: -4, opacity: 0, filter: 'blur(10px)' }}
+                transition={{ duration: 0.12, ease: 'easeInOut' }}
+                className="inline-block"
+              >
+                {isSharing ? 'Sharing...' : 'Share'}
+              </motion.span>
+            </AnimatePresence>
+          </motion.span>
+        </motion.button>
       </div>
+      {shareError && (
+        <p className="px-4 min-[480px]:px-7 pt-2 text-sm text-red-100">{shareError}</p>
+      )}
 
       {/* Middle content: Header, Description, Callout, CTA */}
       <div className="flex gap-6 flex-col px-4 min-[480px]:px-7 py-4 min-[480px]:py-6 flex-1 min-h-0">
