@@ -84,6 +84,8 @@ function eventToMessage(event: SlackMessageEvent): SlackApiMessage {
 
 /**
  * Process the incoming message event asynchronously.
+ * Slack may send duplicate events for the same message (retries, etc.); the DB unique
+ * constraint on (message_id, channel_id) ensures only one release is stored.
  */
 async function handleMessageEvent(event: SlackMessageEvent, channelId: string): Promise<void> {
   console.log(`[Events] handleMessageEvent called for ${event.ts}`, {

@@ -260,7 +260,18 @@ export async function extractReleasesFromMessages(
         const messageDate = messageTimestamp.toISOString().split('T')[0]
         const media = extractMediaFromMessage(msg)
 
-        for (const release of llmReleases) {
+        // Guard: LLM sometimes returns multiple releases for one message (e.g. alternative phrasings).
+        // Keep only the most complete one (longest description) to avoid duplicate release notes.
+        const releasesToInsert =
+          llmReleases.length > 1
+            ? [llmReleases.reduce((a, b) => ((a.description?.length ?? 0) >= (b.description?.length ?? 0) ? a : b))]
+            : llmReleases
+
+        if (llmReleases.length > 1) {
+          console.warn(`Message ${msg.ts}: LLM returned ${llmReleases.length} releases, keeping most complete`)
+        }
+
+        for (const release of releasesToInsert) {
           extractedReleases.push({
             messageId: msg.ts,
             date: messageDate,

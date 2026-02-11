@@ -48,6 +48,8 @@ A Next.js app that syncs release announcements from Slack, uses AI to extract st
 3. Set up Langfuse prompts:
    - `release-classification`: Determines which messages are releases
    - `release-extraction`: Extracts structured data from release messages
+     - Must instruct the LLM to return exactly ONE release per message (JSON array with one object)
+     - If multiple are returned, the code keeps only the most complete one as a safeguard
 
 4. Run locally:
    ```bash

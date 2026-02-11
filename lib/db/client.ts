@@ -233,6 +233,23 @@ export async function initializeSchema(): Promise<void> {
   await sql`CREATE INDEX IF NOT EXISTS idx_releases_search ON releases USING GIN(search_vector)`
   await sql`CREATE INDEX IF NOT EXISTS idx_releases_thread_ts ON releases(thread_ts)`
   await sql`CREATE INDEX IF NOT EXISTS idx_releases_channel ON releases(channel_id)`
+
+  // Migration: Add unique constraint to prevent duplicate releases from race conditions
+  // (Slack can send the same message event multiple times; concurrent handlers would all insert)
+  await sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'releases_message_channel_unique'
+      ) THEN
+        -- Remove duplicates first (keep row with smallest id)
+        DELETE FROM releases a
+        USING releases b
+        WHERE a.message_id = b.message_id AND a.channel_id = b.channel_id AND a.id > b.id;
+        ALTER TABLE releases ADD CONSTRAINT releases_message_channel_unique UNIQUE (message_id, channel_id);
+      END IF;
+    END $$;
+  `
 }
 
 // Get existing release message IDs for deduplication
@@ -305,6 +322,7 @@ export async function insertRelease(release: {
         ${release.editedTs ?? null},
         ${release.rawJson ? JSON.stringify(release.rawJson) : null}
       )
+      ON CONFLICT (message_id, channel_id) DO NOTHING
       RETURNING id
     `
     return result.rows[0]?.id ?? null
