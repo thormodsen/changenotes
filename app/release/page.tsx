@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { getReleases, initializeSchema } from '@/lib/db/client'
+import { MomentumScrollArea } from './MomentumScrollArea'
 import { ReleaseCardPreview } from './ReleaseCardPreview'
-import { ScrollToCard } from './ScrollToCard'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -16,11 +16,10 @@ export default async function ReleaseOverviewPage() {
   })
 
   return (
-    <main className="h-dvh bg-[#0E2433] p-4 sm:p-6 overflow-auto">
+    <main className="h-dvh bg-[#0E2433] p-4 sm:p-6">
       <Suspense fallback={null}>
-        <ScrollToCard />
-      </Suspense>
-      <div className="inline-block min-w-0">
+        <MomentumScrollArea>
+          <div className="inline-block min-w-0">
         {releases.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
             <p className="text-white/80">No shared cards yet.</p>
@@ -63,7 +62,9 @@ export default async function ReleaseOverviewPage() {
             </ul>
           </div>
         )}
-      </div>
+          </div>
+        </MomentumScrollArea>
+      </Suspense>
     </main>
   )
 }
