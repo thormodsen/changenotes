@@ -2,7 +2,7 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { unstable_noStore as noStore } from 'next/cache'
 import { getReleaseById } from '@/lib/db/client'
-import { ReleaseCard } from './release-card'
+import { ReleasePageClient } from './release-page-client'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -48,14 +48,13 @@ export default async function ReleasePage({ params }: PageProps) {
     notFound()
   }
 
-  // Prefer marketing fields when available
   const displayTitle = release.marketing_title || release.title
   const displayDescription = release.marketing_description || release.description || ''
   const displayWhyItMatters = release.marketing_why_this_matters || release.why_this_matters || ''
 
   return (
-    <main className="bg-[#0E2433] min-h-dvh flex items-center justify-center p-4">
-      <ReleaseCard
+    <ReleasePageClient
+        releaseId={release.id}
         releaseNote={{
           id: release.id,
           title: displayTitle,
@@ -65,6 +64,5 @@ export default async function ReleasePage({ params }: PageProps) {
           date: release.date,
         }}
       />
-    </main>
   )
 }
