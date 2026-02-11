@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
+import { MarkReleaseSeen } from '../MarkReleaseSeen'
 import { ReleaseCard } from './release-card'
 import { ReleaseDetailModal } from './release-detail-modal'
 
@@ -60,7 +62,14 @@ export function ReleasePageClient({
   }, [])
 
   return (
-    <main className={`bg-[#0E2433] min-h-dvh flex items-center justify-center w-full ${!detailOpen ? 'p-4' : ''}`}>
+    <main className={`bg-[#0E2433] min-h-dvh flex items-center justify-center w-full relative ${!detailOpen ? 'p-4' : ''}`}>
+      <MarkReleaseSeen id={releaseId} />
+      <Link
+        href={`/release?card=${releaseId}`}
+        className="absolute top-4 left-4 z-10 text-sm font-medium text-white/80 hover:text-white transition"
+      >
+        ← All cards
+      </Link>
     <div className="flex items-center justify-center w-full min-h-dvh relative">
       <AnimatePresence mode="popLayout">
         {!detailOpen ? (

@@ -2,6 +2,7 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { unstable_noStore as noStore } from 'next/cache'
 import { getReleaseById } from '@/lib/db/client'
+import { MarkReleaseSeen } from '../MarkReleaseSeen'
 import { ReleasePageClient } from './release-page-client'
 
 export const dynamic = 'force-dynamic'
@@ -54,8 +55,8 @@ export default async function ReleasePage({ params }: PageProps) {
 
   return (
     <ReleasePageClient
-        releaseId={release.id}
-        releaseNote={{
+      releaseId={release.id}
+      releaseNote={{
           id: release.id,
           title: displayTitle,
           type: release.type,

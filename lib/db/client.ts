@@ -378,6 +378,7 @@ export async function getReleases(options?: {
   startDate?: string
   endDate?: string
   published?: boolean
+  shared?: boolean
   promptVersion?: string
   limit?: number
   offset?: number
@@ -397,6 +398,10 @@ export async function getReleases(options?: {
   if (options?.published !== undefined) {
     whereClause += ` AND published = $${paramIndex++}`
     params.push(options.published)
+  }
+  if (options?.shared !== undefined) {
+    whereClause += ` AND shared = $${paramIndex++}`
+    params.push(options.shared)
   }
   if (options?.promptVersion) {
     whereClause += ` AND prompt_version = $${paramIndex++}`
