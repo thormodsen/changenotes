@@ -6,9 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "cli": "npm run dev --prefix cli",
-    "cli:build": "npm run build --prefix cli"
+    "lint": "next lint"
   },
   "dependencies": {
     "@lottiefiles/dotlottie-react": "^0.17.14",
