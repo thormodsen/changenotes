@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import { unstable_noStore as noStore } from 'next/cache'
 import Link from 'next/link'
 import { getReleaseById, getLinkedReleases, type RelatedRelease } from '@/lib/db/client'
-import { formatDisplayDate, formatShortDate } from '@/lib/text-utils'
+import { formatDisplayDate } from '@/lib/text-utils'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -31,7 +31,7 @@ function RelatedReleaseCard({ release }: { release: RelatedRelease }) {
         >
           {release.type}
         </span>
-        <span className="text-sm text-gray-500">{formatShortDate(release.date)}</span>
+        <span className="text-sm text-gray-500">{formatDisplayDate(release.date)}</span>
       </div>
       <Link href={`/changelog/${release.id}`} className="block group">
         <h3 className="text-xl font-semibold text-[#0E2433] mb-2 group-hover:text-[#335FFF] transition-colors">
