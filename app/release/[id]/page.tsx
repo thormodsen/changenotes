@@ -3,6 +3,7 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { unstable_noStore as noStore } from 'next/cache'
 import { getReleaseById } from '@/lib/db/client'
+import { MarkReleaseSeen } from '../MarkReleaseSeen'
 import { ReleaseCard } from './release-card'
 
 export const dynamic = 'force-dynamic'
@@ -56,6 +57,7 @@ export default async function ReleasePage({ params }: PageProps) {
 
   return (
     <main className="bg-[#0E2433] min-h-dvh flex flex-col items-center justify-center p-4 relative">
+      <MarkReleaseSeen id={id} />
       <Link
         href={`/release?card=${id}`}
         className="absolute top-4 left-4 text-sm font-medium text-white/80 hover:text-white transition"

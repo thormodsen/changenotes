@@ -1,6 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
+
+const STORAGE_KEY = 'release-seen'
 
 interface ReleaseCardPreviewProps {
   id: string
@@ -19,10 +23,24 @@ function formatDate(dateStr: string): string {
 }
 
 export function ReleaseCardPreview({ id, title, date }: ReleaseCardPreviewProps) {
+  const pathname = usePathname()
+  const [isSeen, setIsSeen] = useState(false)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY)
+      const seen: string[] = raw ? JSON.parse(raw) : []
+      setIsSeen(seen.includes(id))
+    } catch {
+      // ignore
+    }
+  }, [id, pathname])
+
   return (
     <Link
       href={`/release/${id}`}
-      className="block w-[200px] aspect-[9/16] rounded-3xl bg-[#335FFF] p-4 flex flex-col transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#0E2433] shrink-0"
+      className={`block w-[200px] aspect-[9/16] rounded-3xl p-4 flex flex-col transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#0E2433] shrink-0 ${
+        isSeen ? 'bg-[#294CCC]' : 'bg-[#335FFF]'
+      }`}
     >
       <p className="text-xs text-white/80 shrink-0">{formatDate(date)}</p>
       <h2 className="text-lg font-semibold text-white line-clamp-4 mt-2 flex-1 flex items-center justify-center text-center">
