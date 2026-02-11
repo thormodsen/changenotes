@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { unstable_noStore as noStore } from 'next/cache'
@@ -54,7 +55,13 @@ export default async function ReleasePage({ params }: PageProps) {
   const displayWhyItMatters = release.marketing_why_this_matters || release.why_this_matters || ''
 
   return (
-    <main className="bg-[#0E2433] min-h-dvh flex items-center justify-center p-4">
+    <main className="bg-[#0E2433] min-h-dvh flex flex-col items-center justify-center p-4 relative">
+      <Link
+        href={`/release?card=${id}`}
+        className="absolute top-4 left-4 text-sm font-medium text-white/80 hover:text-white transition"
+      >
+        ← All cards
+      </Link>
       <ReleaseCard
         releaseNote={{
           id: release.id,

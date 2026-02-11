@@ -1,6 +1,8 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { getReleases, initializeSchema } from '@/lib/db/client'
 import { ReleaseCardPreview } from './ReleaseCardPreview'
+import { ScrollToCard } from './ScrollToCard'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -15,16 +17,10 @@ export default async function ReleaseOverviewPage() {
 
   return (
     <main className="h-dvh bg-[#0E2433] p-4 sm:p-6 overflow-auto">
+      <Suspense fallback={null}>
+        <ScrollToCard />
+      </Suspense>
       <div className="inline-block min-w-0">
-        <header className="mb-8">
-          <h1 className="text-2xl font-bold text-white sm:text-3xl">
-            Marketing cards
-          </h1>
-          <p className="mt-1 text-white/70 text-sm sm:text-base">
-            Click a card to open the full view. Scroll or zoom to see more.
-          </p>
-        </header>
-
         {releases.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
             <p className="text-white/80">No shared cards yet.</p>
@@ -36,14 +32,23 @@ export default async function ReleaseOverviewPage() {
             </Link>
           </div>
         ) : (
-          <ul
-            className="grid gap-4 w-max"
+          <div
+            className="w-max"
             style={{
-              gridTemplateColumns: 'repeat(5, 200px)',
+              paddingLeft: 400,
+              paddingRight: 400,
+              paddingTop: 712,
+              paddingBottom: 712,
             }}
           >
+            <ul
+              className="grid gap-4 w-max"
+              style={{
+                gridTemplateColumns: 'repeat(5, 200px)',
+              }}
+            >
             {releases.map((release) => (
-              <li key={release.id}>
+              <li key={release.id} id={`card-${release.id}`}>
                 <ReleaseCardPreview
                   id={release.id}
                   title={release.marketing_title || release.title}
@@ -55,7 +60,8 @@ export default async function ReleaseOverviewPage() {
                 />
               </li>
             ))}
-          </ul>
+            </ul>
+          </div>
         )}
       </div>
     </main>
