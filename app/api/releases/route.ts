@@ -13,6 +13,9 @@ export async function GET(request: NextRequest) {
       published: searchParams.has('published')
         ? searchParams.get('published') === 'true'
         : undefined,
+      shared: searchParams.has('shared')
+        ? searchParams.get('shared') === 'true'
+        : undefined,
       promptVersion: searchParams.get('promptVersion') ?? undefined,
       limit: searchParams.has('limit')
         ? parseInt(searchParams.get('limit')!, 10)
