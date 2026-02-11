@@ -169,7 +169,7 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
                     animate={{ width: isSharing ? labelWidths.sharing : labelWidths.share }}
                     transition={{ duration: 0.1, ease: [0.075, 0.82, 0.165, 1] }}
                   >
-                    <AnimatePresence mode="wait" initial={false}>
+                    <AnimatePresence mode="popLayout" initial={false}>
                       <motion.span
                         key={isSharing ? 'sharing' : 'share'}
                         initial={{ y: 4, opacity: 0, filter: 'blur(10px)' }}

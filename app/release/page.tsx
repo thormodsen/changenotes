@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { getReleases, initializeSchema } from '@/lib/db/client'
 import { MomentumScrollArea } from './MomentumScrollArea'
-import { ReleaseCardPreview } from './ReleaseCardPreview'
+import { ReleaseCard } from './[id]/release-card'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -43,20 +43,23 @@ export default async function ReleaseOverviewPage() {
             <ul
               className="grid gap-4 w-max"
               style={{
-                gridTemplateColumns: 'repeat(5, 200px)',
+                gridTemplateColumns: 'repeat(5, 448px)',
               }}
             >
             {releases.map((release) => (
               <li key={release.id} id={`card-${release.id}`}>
-                <ReleaseCardPreview
-                  id={release.id}
-                  title={release.marketing_title || release.title}
-                  date={
-                    typeof release.date === 'string'
-                      ? release.date
-                      : (release.date as Date).toISOString().split('T')[0]
-                  }
-                />
+                <Link href={`/release/${release.id}#detail`} className="block">
+                  <ReleaseCard
+                    releaseNote={{
+                      id: release.id,
+                      title: release.marketing_title || release.title,
+                      type: release.type,
+                      description: release.marketing_description || release.description || '',
+                      whyItMatters: release.marketing_why_this_matters || release.why_this_matters || '',
+                      date: release.date,
+                    }}
+                  />
+                </Link>
               </li>
             ))}
             </ul>

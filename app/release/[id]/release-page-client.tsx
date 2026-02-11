@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { MarkReleaseSeen } from '../MarkReleaseSeen'
 import { ReleaseCard } from './release-card'
@@ -26,6 +26,7 @@ export function ReleasePageClient({
   releaseId,
   releaseNote,
 }: ReleasePageClientProps) {
+  const router = useRouter()
   const pathname = usePathname()
   const [detailOpen, setDetailOpen] = useState(false)
 
@@ -48,9 +49,8 @@ export function ReleasePageClient({
   }, [updateHash])
 
   const handleClose = useCallback(() => {
-    setDetailOpen(false)
-    updateHash(false)
-  }, [updateHash])
+    router.push(`/release?card=${releaseId}`)
+  }, [router, releaseId])
 
   useEffect(() => {
     const checkHash = () => {
