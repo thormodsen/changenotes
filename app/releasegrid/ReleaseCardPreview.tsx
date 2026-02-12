@@ -37,7 +37,7 @@ export function ReleaseCardPreview({ id, title, date }: ReleaseCardPreviewProps)
 
   return (
     <Link
-      href={`/release/${id}`}
+      href={`/releasegrid/${id}`}
       className={`block w-[200px] aspect-[9/16] rounded-3xl p-4 flex flex-col transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#0E2433] shrink-0 ${
         isSeen ? 'bg-[#294CCC]' : 'bg-[#335FFF]'
       }`}

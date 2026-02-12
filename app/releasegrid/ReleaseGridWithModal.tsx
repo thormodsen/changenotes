@@ -34,12 +34,12 @@ export function ReleaseGridWithModal({ releases }: ReleaseGridWithModalProps) {
 
   const handleOpen = useCallback((id: string) => {
     setSelectedReleaseId(id)
-    window.history.pushState(null, '', `/release/${id}`)
+    window.history.pushState(null, '', `/releasegrid/${id}`)
   }, [])
 
   const handleClose = useCallback(() => {
     setSelectedReleaseId(null)
-    window.history.replaceState(null, '', '/release')
+    window.history.replaceState(null, '', '/releasegrid')
   }, [])
 
   useEffect(() => {

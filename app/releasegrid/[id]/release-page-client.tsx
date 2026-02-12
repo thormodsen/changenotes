@@ -49,7 +49,7 @@ export function ReleasePageClient({
   }, [updateHash])
 
   const handleClose = useCallback(() => {
-    router.push(`/release?card=${releaseId}`)
+    router.push(`/releasegrid?card=${releaseId}`)
   }, [router, releaseId])
 
   useEffect(() => {
@@ -65,7 +65,7 @@ export function ReleasePageClient({
     <main className={`bg-[#0E2433] min-h-dvh flex items-center justify-center w-full relative ${!detailOpen ? 'p-4' : ''}`}>
       <MarkReleaseSeen id={releaseId} />
       <Link
-        href={`/release?card=${releaseId}`}
+        href={`/releasegrid?card=${releaseId}`}
         className="absolute top-4 left-4 z-10 text-sm font-medium text-white/80 hover:text-white transition"
       >
         ← All cards

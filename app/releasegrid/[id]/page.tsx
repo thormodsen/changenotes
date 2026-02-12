@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title,
       description,
       type: 'article',
-      url: `/release/${id}`,
+      url: `/releasegrid/${id}`,
     },
     twitter: {
       card: 'summary_large_image',
