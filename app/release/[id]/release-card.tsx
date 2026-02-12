@@ -1,13 +1,12 @@
 'use client'
 
 import './release-card.css'
-import { Newspaper, Star, CheckCircle, Zap, Rocket, PartyPopper, Share, X, ExternalLink } from 'lucide-react'
+import { Newspaper, Star, CheckCircle, Zap, Rocket, PartyPopper, Share, X } from 'lucide-react'
 import { LightBulbs } from '@/app/assets/icons'
 import { getReleaseCardTheme } from '@/app/assets/illustrations/release-card-footers'
 import { AnimatePresence, motion } from 'framer-motion'
 import { toPng } from 'html-to-image'
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 interface ReleaseNote {
   id: string
@@ -135,24 +134,22 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
         initial={hasEntranceAnimation ? { opacity: 0, y: 15, filter: 'blur(10px)' } : false}
         animate={hasEntranceAnimation ? { opacity: 1, y: 0, filter: 'blur(0px)' } : undefined}
         style={{ backgroundColor: theme.background }}
-        className={`relative overflow-hidden flex flex-col release-card 
-        ${variant === 'detail' ? 'w-full min-w-0 min-h-dvh !rounded-none' : 'w-full min-w-[288px] max-[479px]:w-[350px] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px] min-h-[50dvh] !rounded-[3rem]'} ${onCardClick ? 'cursor-pointer' : ''}`}
+        className={`relative overflow-hidden flex flex-col release-card ${variant === 'detail' ? 'release-card--detail' : ''}
+        ${variant === 'detail' ? 'w-full min-w-0 max-w-[672px] !rounded-none' : 'w-full max-w-[200px] aspect-[448/796] min-[480px]:release-card--figma'} ${onCardClick ? 'cursor-pointer' : ''}`}
       >
-        <div className={`flex-1 flex flex-col min-h-0 ${variant === 'detail' ? 'max-w-[672px] w-full mx-auto' : ''}`}>
-          {/* 1. Header - Type badge, date, close (detail) and share */}
-          <div
-            className="flex items-center gap-4 flex-shrink-0 p-4 min-[480px]:p-7 pb-0 min-[480px]:pb-0"
-          >
+        {/* 1. Header - Type badge */}
+        <div className={variant === 'detail' ? 'p-4 min-[480px]:p-6' : 'px-2 pt-2'}>
+          <div className="flex items-center gap-2">
             <div
-              className="rounded-full px-4 py-2 flex items-center gap-2"
+              className={`rounded-full flex items-center ${variant === 'detail' ? 'px-4 py-2 gap-2' : 'px-2 py-1 gap-1'}`}
               style={{ backgroundColor: config.color }}
             >
-              <Icon className="w-4 h-4 text-[#0E2433]" />
-              <span className="text-[#0E2433] text-sm font-normal">{config.label}</span>
+              <Icon className={variant === 'detail' ? 'w-4 h-4 text-[#0E2433]' : 'w-3 h-3 text-[#0E2433]'} />
+              <span className={`text-[#0E2433] font-medium leading-[1.4] ${variant === 'detail' ? 'text-[16px]' : 'text-[10px]'}`}>{config.label}</span>
             </div>
-            {formattedDate && <span className="text-white text-sm font-normal">{formattedDate}</span>}
-            <div className="ml-auto flex items-center gap-2">
-              {variant === 'detail' && (
+            {formattedDate && variant === 'detail' && <span className="text-white text-[16px] font-medium leading-[1.4] px-4 py-2">{formattedDate}</span>}
+            {variant === 'detail' && (
+              <div className="ml-auto flex items-center gap-2">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -161,7 +158,7 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
                   }}
                   disabled={isSharing}
                   data-share-button="true"
-                  className="share-button relative inline-flex items-center gap-2 max-[400px]:gap-0 rounded-full bg-white/20 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/30 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="share-button relative inline-flex items-center gap-2 max-[400px]:gap-0 rounded-full bg-[#708FFF] px-4 py-2 text-[16px] font-medium leading-[1.4] text-white transition hover:bg-[#5A7AE6] disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   <span className="pointer-events-none absolute opacity-0 whitespace-nowrap">
                     <span ref={shareLabelRef}>Share</span>
@@ -188,8 +185,6 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
                     </AnimatePresence>
                   </motion.span>
                 </button>
-              )}
-              {variant === 'detail' && (
                 <button
                   type="button"
                   aria-label="Close"
@@ -201,97 +196,105 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
                 >
                   <X className="w-5 h-5" />
                 </button>
-              )}
-            </div>
-          </div>
-          {variant === 'detail' && shareError && (
-            <p className="px-4 min-[480px]:px-7 pt-2 text-sm text-red-100">{shareError}</p>
-          )}
-
-          {/* Middle content: Header, Description, Callout, CTA */}
-          <div
-            className="flex gap-6 flex-col px-4 min-[480px]:px-7 py-4 min-[480px]:py-6 flex-1 min-h-0 justify-between"
-          >
-            <div className="flex flex-col gap-5">
-              <div className="flex flex-col gap-4">
-                {/* 2. Title - stays at top */}
-                <h1
-                  className="text-3xl font-extrabold text-white leading-tight min-[480px]:text-3xl flex-shrink-0"
-                >
-                  {releaseNote.title}
-                </h1>
-                {/* 4. Why It Matters - Callout - distributed in middle */}
-                {releaseNote.whyItMatters && (
-                  <div
-                    className="rounded-3xl p-4 why-it-matters-card flex-shrink-0"
-                    style={{ backgroundColor: theme.calloutBg ?? theme.background }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-[46px] h-[56px] min-w-[46px] min-h-[56px] overflow-hidden"
-                      >
-                        <LightBulbs className="w-full h-full" />
-                      </div>
-                      <p className="text-white opacity-85 text-base font-light min-[480px]:text-lg">
-                        {releaseNote.whyItMatters}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. Description - hidden in compact (opacity 0), visible in detail */}
-                <motion.div
-                  className="flex-shrink-0"
-                  initial={false}
-                  animate={{
-                    opacity: showDescription && releaseNote.description ? 1 : 0,
-                  }}
-                  transition={{ duration: 0.35, ease: [0.075, 0.82, 0.165, 1] }}
-                >
-                  {releaseNote.description && (
-                    <motion.p
-                      className="text-base font-light text-white leading-relaxed min-[480px]:text-xl"
-                      initial={showDescription ? { opacity: 0, y: 8 } : false}
-                      animate={showDescription ? { opacity: 1, y: 0 } : { opacity: 0 }}
-                      exit={{ opacity: 0, y: 8 }}
-                      transition={{ duration: 0.35, ease: [0.075, 0.82, 0.165, 1], delay: 0.08 }}
-                    >
-                      {releaseNote.description}
-                    </motion.p>
-                  )}
-                </motion.div>
-              </div>
-            </div>
-
-            {/* 5. CTA - only in detail */}
-            {variant === 'detail' && (
-              <div className="flex flex-col gap-3 flex-shrink-0">
-                <motion.a
-                  key="visit-changelog"
-                  initial={{ opacity: 0, y: 10, filter: 'blur(10px)' }}
-                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                  exit={{ opacity: 0, y: 1, filter: 'blur(10px)' }}
-                  transition={{ duration: 0.2, ease: [0.075, 0.82, 0.165, 1] }}
-                  href={`/changelog/${releaseNote.id}`}
-                  className="release-card-button block w-full text-center rounded-full py-3 bg-white text-[#0E2433] font-semibold text-xl"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onClose?.()
-                  }}
-                >
-                  <span className="inline-flex items-center justify-center gap-2">
-                    <span>Visit Changelog</span>
-                    <ExternalLink className="w-5 h-5" />
-                  </span>
-                </motion.a>
               </div>
             )}
           </div>
-
         </div>
 
-        {/* 6. Footer - bottom-anchored illustration (theme from Figma Community Concepts) */}
-        <motion.div className="relative w-full h-[120px] min-[480px]:h-[160px] overflow-hidden flex-shrink-0">
+        {variant === 'detail' && shareError && (
+          <p className="px-4 min-[480px]:px-7 pt-2 text-sm text-red-100">{shareError}</p>
+        )}
+
+        {/* 2. Title */}
+        <div className={variant === 'detail' ? 'px-4 min-[480px]:px-6 pt-4 min-[480px]:pt-0' : 'px-2 pt-2'}>
+          <h1
+            className={`font-extrabold text-white leading-[1.2] ${
+              variant === 'detail'
+                ? 'text-[28px] min-[480px]:text-[40px]'
+                : 'text-[16px]'
+            }`}
+          >
+            {releaseNote.title}
+          </h1>
+        </div>
+
+        {/* 3. Description - only for detail */}
+        {variant === 'detail' && (
+          <motion.div
+            className="px-4 min-[480px]:px-6 pt-4"
+            initial={false}
+            animate={{
+              opacity: showDescription && releaseNote.description ? 1 : 0,
+            }}
+            transition={{ duration: 0.35, ease: [0.075, 0.82, 0.165, 1] }}
+          >
+            {releaseNote.description && (
+              <motion.p
+                className="text-[20px] font-normal text-white leading-[1.4]"
+                initial={showDescription ? { opacity: 0, y: 8 } : false}
+                animate={showDescription ? { opacity: 1, y: 0 } : { opacity: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.35, ease: [0.075, 0.82, 0.165, 1], delay: 0.08 }}
+              >
+                {releaseNote.description}
+              </motion.p>
+            )}
+          </motion.div>
+        )}
+
+        {/* 4. Why It Matters callout */}
+        {releaseNote.whyItMatters && (
+          <div className={variant === 'detail' ? 'px-4 min-[480px]:px-6 pt-8' : 'px-2 pt-2'}>
+            <div
+              className={`overflow-hidden ${
+                variant === 'detail' ? 'rounded-[24px] p-4' : 'rounded-[8px] p-1.5'
+              }`}
+              style={{ backgroundColor: theme.calloutBg }}
+            >
+              <div className={variant === 'detail' ? 'flex items-start gap-4' : 'flex items-center gap-1'}>
+                <LightBulbs 
+                  width={variant === 'detail' ? 48 : 20} 
+                  height={variant === 'detail' ? 48 : 20} 
+                  className="flex-shrink-0"
+                />
+                <p
+                  className={`font-normal leading-[1.3] ${
+                    variant === 'detail' ? 'text-[20px]' : 'text-[11px]'
+                  }`}
+                  style={{ color: theme.calloutTextColor ?? 'white' }}
+                >
+                  {releaseNote.whyItMatters}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 5. CTA - only for detail */}
+        {variant === 'detail' && (
+          <div className="px-4 min-[480px]:px-6 pt-8 pb-4 min-[480px]:pb-8">
+            <motion.a
+              key="learn-more"
+              initial={{ opacity: 0, y: 10, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: 1, filter: 'blur(10px)' }}
+              transition={{ duration: 0.2, ease: [0.075, 0.82, 0.165, 1] }}
+              href={`/changelog/${releaseNote.id}`}
+              className="release-card-button block w-full text-center rounded-full px-4 py-3 bg-white text-[#0E2433] font-semibold text-[20px] leading-[1.4]"
+              onClick={(e) => {
+                e.stopPropagation()
+                onClose?.()
+              }}
+            >
+              Learn more
+            </motion.a>
+          </div>
+        )}
+
+        {/* 6. Footer illustration */}
+        <motion.div className={`relative w-full overflow-hidden flex-shrink-0 ${
+          variant === 'detail' ? 'h-[140px] min-[480px]:h-[207px]' : 'h-[100px] mt-auto'
+        }`}>
           {(() => {
             const Footer = theme.Footer
             return <Footer />

@@ -194,8 +194,9 @@ export async function extractReleasesFromMessages(
       classificationPrompt
     )
 
+    const releaseIdList = Array.from(releaseIds).join(', ')
     console.log(
-      `Thread ${threadId}: ${releaseIds.size}/${threadMessages.length} messages identified as releases`
+      `Thread ${threadId}: ${releaseIds.size}/${threadMessages.length} messages identified as releases${releaseIdList ? ` (message_ts: ${releaseIdList})` : ''}`
     )
 
     // Find the parent message for thread context

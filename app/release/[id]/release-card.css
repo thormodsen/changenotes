@@ -3,7 +3,22 @@
 }
 
 .release-card {
-  border-radius: 1.5rem;
+  border-radius: 32px;
+}
+
+.release-card:not(.release-card--detail) {
+  border-radius: 16px;
+}
+
+/* Figma spec: 448×796 aspect ratio, scales to fit container */
+.release-card--figma {
+  display: flex;
+  width: 100%;
+  max-width: 200px;
+  aspect-ratio: 448 / 796;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
 .release-card-button {
@@ -18,10 +33,6 @@
 
 .release-card-button:active {
   transform: scale(0.98);
-}
-
-.why-it-matters-card {
-  border-radius: 1rem;
 }
 
 .background-release-card {

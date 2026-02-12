@@ -1,4 +1,5 @@
-export function CourtLines({ className }: { className?: string }) {
+/** Court surface + white boundary lines. Pass courtFill to match card color (e.g. green card = lighter green). */
+export function CourtLines({ className, courtFill = '#FCF8EE' }: { className?: string; courtFill?: string }) {
   return (
     <svg
       viewBox="-32 0 481 207"
@@ -7,12 +8,20 @@ export function CourtLines({ className }: { className?: string }) {
       className={className}
       preserveAspectRatio="none"
     >
-      <path d="M448.578 -0.0667042L-32 187.362V207L273.214 82.8323L448.578 158.987V139.842L295.233 73.8745L448.578 11.4933V-0.0793457V-0.0667042Z" fill="#FCF8EE" />
+      {/* Court surface */}
+      <path d="M448.578 -0.0667042L-32 187.362V207L273.214 82.8323L448.578 158.987V139.842L295.233 73.8745L448.578 11.4933V-0.0793457V-0.0667042Z" fill={courtFill} />
+      {/* White boundary lines – bottom-right and bottom-left */}
+      <path d="M280 207 L448 100 M320 207 L448 130 M360 207 L448 160" stroke="white" strokeWidth="2.5" strokeOpacity="0.95" />
+      <path d="M448 80 L200 207 M448 110 L260 207" stroke="white" strokeWidth="2" strokeOpacity="0.9" />
+      <path d="M-32 180 L120 207 M0 160 L180 207 M40 140 L220 207" stroke="white" strokeWidth="2.5" strokeOpacity="0.95" />
     </svg>
   )
 }
 
-export function TennisBallShadow({ className }: { className?: string }) {
+/** Ball shadow – use default (blue) or pass shadowColor for theme (e.g. neutral for non-blue). */
+export function TennisBallShadow({ className, shadowColor }: { className?: string; shadowColor?: string }) {
+  const fill = shadowColor ?? '#0F39D4'
+  const fill2 = shadowColor ?? '#335FFF'
   return (
     <svg
       viewBox="0 0 115 42"
@@ -22,15 +31,15 @@ export function TennisBallShadow({ className }: { className?: string }) {
       style={{ overflow: 'visible' }}
     >
       <g transform="translate(-88, -80)">
-        <path d="M149.953 82.4183C179.39 82.5737 201.383 91.0264 199.092 101.279C196.801 111.544 171.079 119.739 141.643 119.57C112.206 119.415 90.2129 110.962 92.5042 100.709C94.7954 90.444 120.517 82.25 149.953 82.4183Z" fill="#0F39D4" />
-        <path d="M199.105 101.292C199.416 99.9326 199.273 98.6248 198.768 97.3433L141.772 119.583C171.157 119.712 196.801 111.544 199.105 101.292Z" fill="#335FFF" />
+        <path d="M149.953 82.4183C179.39 82.5737 201.383 91.0264 199.092 101.279C196.801 111.544 171.079 119.739 141.643 119.57C112.206 119.415 90.2129 110.962 92.5042 100.709C94.7954 90.444 120.517 82.25 149.953 82.4183Z" fill={fill} />
+        <path d="M199.105 101.292C199.416 99.9326 199.273 98.6248 198.768 97.3433L141.772 119.583C171.157 119.712 196.801 111.544 199.105 101.292Z" fill={fill2} />
       </g>
     </svg>
   )
 }
 
-/** Padel racket silhouette – pass fill for theme (e.g. blue on green card, pink on pink card). */
-export function PadelRacket({ className, fill = '#708FFF' }: { className?: string; fill?: string }) {
+/** Padel racket – fill for theme; showDots adds textured surface (Figma green card). */
+export function PadelRacket({ className, fill = '#708FFF', showDots = false }: { className?: string; fill?: string; showDots?: boolean }) {
   return (
     <svg
       viewBox="0 0 120 140"
@@ -41,6 +50,15 @@ export function PadelRacket({ className, fill = '#708FFF' }: { className?: strin
     >
       {/* Racket face (oval) */}
       <ellipse cx="60" cy="55" rx="42" ry="48" fill={fill} />
+      {showDots && (
+        <g fill="rgba(255,255,255,0.25)">
+          {[48, 52, 56, 60, 64, 68].map((cx, i) =>
+            [38, 44, 50, 56, 62].map((cy, j) => (
+              <circle key={`${i}-${j}`} cx={cx} cy={cy} r="2.5" />
+            ))
+          ).flat()}
+        </g>
+      )}
       <ellipse cx="60" cy="55" rx="38" ry="44" fill="none" stroke="white" strokeWidth="4" strokeOpacity={0.9} />
       {/* Handle */}
       <path
@@ -122,7 +140,7 @@ export function BackgroundReleaseCard({ className, width, height }: { className?
   )
 }
 
-export function LightBulbs({ className, width = 48, height = 48 }: { className?: string; width?: number; height?: number }) {
+export function LightBulbs({ className, width, height, style }: { className?: string; width?: number; height?: number; style?: React.CSSProperties }) {
   return (
     <svg
       width={width}
@@ -131,7 +149,7 @@ export function LightBulbs({ className, width = 48, height = 48 }: { className?:
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
-      style={{ width: `${width}px`, height: `${height}px`, display: 'block', flexShrink: 0 }}
+      style={{ display: 'block', flexShrink: 0, ...style }}
     >
       <path d="M26.5163 43.854C26.5163 45.1204 25.4894 46.1474 24.2229 46.1474H23.382C22.1156 46.1474 21.0886 45.1204 21.0886 43.854H26.517H26.5163Z" fill="#0E2433" />
       <path d="M29.5132 38.9965C29.8623 39.2197 30.1031 39.602 30.1282 40.0471C30.1694 40.7838 29.6066 41.4137 28.8705 41.4556H28.859C28.8523 42.9899 27.6061 44.2313 26.0704 44.2313H21.5337C20.1895 44.2313 19.0672 43.2795 18.8047 42.0131C18.1701 41.9407 17.6614 41.4211 17.6242 40.7622C17.5964 40.269 17.84 39.8232 18.2249 39.5708C17.7879 39.3618 17.4753 38.9275 17.4462 38.4093C17.4171 37.891 17.6789 37.4236 18.0896 37.1672C17.5937 36.9662 17.2311 36.4934 17.1986 35.9244C17.1601 35.2459 17.6032 34.6519 18.2296 34.4733L30.2006 34.3008C30.4035 34.5315 30.5334 34.8298 30.5517 35.16C30.5882 35.7952 30.2012 36.3567 29.6377 36.5718C30.0159 36.7978 30.2784 37.201 30.3047 37.6732C30.3372 38.251 30.0071 38.7665 29.5119 38.9958L29.5132 38.9965Z" fill="#3E505C" />

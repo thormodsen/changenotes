@@ -91,6 +91,12 @@ export async function processSingleMessage(
     console.log(`[ProcessMessage] Filtered to ${messageReleases.length} releases for message ${message.ts}`)
 
     if (messageReleases.length === 0) {
+      // Remove any previously inserted release for this message (e.g. from a prior
+      // mis-classification or from a duplicate event that inserted before we returned).
+      const deleted = await deleteReleasesForMessage(message.ts)
+      if (deleted > 0) {
+        console.log(`[ProcessMessage] No releases for message ${message.ts}, deleted ${deleted} existing release(s)`)
+      }
       console.log(`[ProcessMessage] No releases found, marking as not_release`)
       return { processed: true, reason: 'not_release' }
     }
