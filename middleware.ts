@@ -7,7 +7,9 @@ const SESSION_NAME = 'changelog_session'
 const publicRoutes = [
   '/login',
   '/release',
+  '/releasegrid',
   '/changelog',
+  '/timeline',
   '/api/auth',
   '/api/slack/events',
   '/api/cron/sync',
