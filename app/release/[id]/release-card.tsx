@@ -2,7 +2,7 @@
 
 import './release-card.css'
 import { Newspaper, Star, CheckCircle, Zap, Rocket, PartyPopper, Share, X, ExternalLink } from 'lucide-react'
-import { CourtLines, TennisBall, TennisBallShadow } from '@/app/assets/icons'
+import { LightBulbs, CourtLines, TennisBall, TennisBallShadow } from '@/app/assets/icons'
 import { AnimatePresence, motion } from 'framer-motion'
 import { toPng } from 'html-to-image'
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
@@ -131,7 +131,7 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
         initial={hasEntranceAnimation ? { opacity: 0, y: 15, filter: 'blur(10px)' } : false}
         animate={hasEntranceAnimation ? { opacity: 1, y: 0, filter: 'blur(0px)' } : undefined}
         className={`relative bg-[#335FFF] overflow-hidden flex flex-col release-card 
-        ${variant === 'detail' ? 'w-full min-w-0 min-h-dvh !rounded-none' : 'w-full min-w-[288px] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px] min-h-[50dvh] min-[480px]:min-h-[65dvh] !rounded-[3rem]'} ${onCardClick ? 'cursor-pointer' : ''}`}
+        ${variant === 'detail' ? 'w-full min-w-0 min-h-dvh !rounded-none' : 'w-full min-w-[288px] max-[479px]:w-[440px] max-[479px]:min-h-[40dvh] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px] min-h-[50dvh] min-[480px]:min-h-[54dvh] !rounded-[3rem]'} ${onCardClick ? 'cursor-pointer' : ''}`}
       >
         <div className={`flex-1 flex flex-col min-h-0 ${variant === 'detail' ? 'max-w-[672px] w-full mx-auto' : ''}`}>
           {/* 1. Header - Type badge, date, close (detail) and share */}
@@ -219,22 +219,11 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
                 {releaseNote.whyItMatters && (
                   <div className="bg-[#294CCC] rounded-3xl p-4 why-it-matters-card flex-shrink-0">
                     <div className="flex items-center gap-2">
-                      <motion.div
-                        layout
-                        initial={false}
-                        animate={false}
-                        exit={{ opacity: 0, y: 8 }}
-                        transition={{ duration: 0.2, ease: [0.075, 0.82, 0.165, 1] }}
+                      <div
                         className="w-[46px] h-[56px] min-w-[46px] min-h-[56px] overflow-hidden"
                       >
-                        <DotLottieReact
-                          src="/lotties/LightBulb-10s.lottie"
-                          loop
-                          autoplay
-                          speed={0.9}
-                          style={{ width: '100%', height: '100%' }}
-                        />
-                      </motion.div>
+                        <LightBulbs className="w-full h-full" />
+                      </div>
                       <p className="text-white opacity-85 text-base font-light min-[480px]:text-lg">
                         {releaseNote.whyItMatters}
                       </p>
