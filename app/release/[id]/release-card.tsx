@@ -60,6 +60,14 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
       year: 'numeric',
     })
     : ''
+  // Shorter format for mini cards (e.g., "Jan 30, 2026")
+  const formattedDateShort = !isNaN(dateValue.getTime())
+    ? dateValue.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+    : ''
 
   useLayoutEffect(() => {
     const measureLabels = () => {
@@ -139,7 +147,7 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
         animate={hasEntranceAnimation ? { opacity: 1, y: 0, filter: 'blur(0px)' } : undefined}
         style={{ backgroundColor: theme.background }}
         className={`relative overflow-hidden flex flex-col release-card ${variant === 'detail' ? 'release-card--detail' : ''}
-        ${variant === 'detail' ? 'w-full max-w-[448px] aspect-[448/960] rounded-[32px]' : 'w-full max-w-[230px] aspect-[448/796] min-[480px]:release-card--figma'} ${onCardClick ? 'cursor-pointer' : ''}`}
+        ${variant === 'detail' ? 'w-full h-dvh min-[480px]:h-auto min-[480px]:max-w-[448px] min-[480px]:aspect-[448/960] min-[480px]:rounded-[32px]' : 'w-full max-w-[230px] aspect-[448/796] min-[480px]:release-card--figma'} ${onCardClick ? 'cursor-pointer' : ''}`}
       >
         {/* 1. Header - Type badge or date */}
         <div className={variant === 'detail' ? 'p-4 min-[480px]:p-6' : 'px-2 pt-2'}>
@@ -147,7 +155,7 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
             {/* Mini card: show date if showDateInHeader, otherwise show type badge */}
             {variant === 'card' && showDateInHeader ? (
               <span className="text-white/70 text-[11px] font-medium leading-[1.4]">
-                {formattedDate}
+                {formattedDateShort}
               </span>
             ) : (
               <div
