@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { MarkReleaseSeen } from '@/app/releasegrid/MarkReleaseSeen'
 import { ReleaseDetailModal } from './release-detail-modal'
@@ -24,6 +24,16 @@ export function ReleasePageClient({
   releaseNote,
 }: ReleasePageClientProps) {
   const router = useRouter()
+  const [screenshotMode, setScreenshotMode] = useState(false)
+
+  useEffect(() => {
+    const checkHash = () => {
+      setScreenshotMode(window.location.hash === '#share')
+    }
+    checkHash()
+    window.addEventListener('hashchange', checkHash)
+    return () => window.removeEventListener('hashchange', checkHash)
+  }, [])
 
   const handleClose = useCallback(() => {
     router.push(`/releasegrid?card=${releaseId}`)
@@ -37,6 +47,7 @@ export function ReleasePageClient({
         releaseNote={releaseNote}
         isOpen={true}
         onClose={handleClose}
+        screenshotMode={screenshotMode}
       />
     </main>
   )

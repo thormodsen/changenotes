@@ -25,6 +25,8 @@ interface ReleaseCardProps {
   variant?: 'card' | 'detail'
   /** Show date instead of type badge in mini card header */
   showDateInHeader?: boolean
+  /** Hide share button, close button, and CTA for screenshot purposes */
+  screenshotMode?: boolean
 }
 
 const typeConfig: Record<string, { icon: typeof Newspaper; label: string; color: string }> = {
@@ -36,7 +38,7 @@ const typeConfig: Record<string, { icon: typeof Newspaper; label: string; color:
   'Rollback': { icon: PartyPopper, label: 'Rollback', color: '#FFB930' },
 }
 
-export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription = false, variant = 'card', showDateInHeader = false }: ReleaseCardProps) {
+export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription = false, variant = 'card', showDateInHeader = false, screenshotMode = false }: ReleaseCardProps) {
   const config = typeConfig[releaseNote.type] || typeConfig['Update']
   const Icon = config.icon
   const cardRef = useRef<HTMLDivElement>(null)
@@ -157,7 +159,7 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
               </div>
             )}
             {formattedDate && variant === 'detail' && <span className="text-white text-[16px] font-medium leading-[1.4] px-4 py-2">{formattedDate}</span>}
-            {variant === 'detail' && (
+            {variant === 'detail' && !screenshotMode && (
               <div className="ml-auto flex items-center gap-2">
                 <button
                   type="button"
@@ -279,8 +281,8 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
           </div>
         )}
 
-        {/* 5. CTA - only for detail */}
-        {variant === 'detail' && (
+        {/* 5. CTA - only for detail, hidden in screenshot mode */}
+        {variant === 'detail' && !screenshotMode && (
           <div className="px-4 min-[480px]:px-6 pt-8 pb-4 min-[480px]:pb-8">
             <motion.a
               key="learn-more"

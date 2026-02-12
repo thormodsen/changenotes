@@ -18,6 +18,7 @@ interface ReleaseDetailModalProps {
   releaseNote: ReleaseNote
   isOpen: boolean
   onClose: () => void
+  screenshotMode?: boolean
 }
 
 const DRAG_THRESHOLD = 80
@@ -28,6 +29,7 @@ export function ReleaseDetailModal({
   releaseNote,
   isOpen,
   onClose,
+  screenshotMode = false,
 }: ReleaseDetailModalProps) {
   const y = useMotionValue(0)
   const dragControls = useDragControls()
@@ -72,6 +74,7 @@ export function ReleaseDetailModal({
               showDescription
               variant="detail"
               onClose={onClose}
+              screenshotMode={screenshotMode}
             />
           </div>
         </div>
