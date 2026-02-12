@@ -3,8 +3,7 @@
 }
 
 .release-card {
-  border-radius: 3rem;
-  corner-shape: squircle;
+  border-radius: 1.5rem;
 }
 
 .release-card-button {
@@ -22,8 +21,7 @@
 }
 
 .why-it-matters-card {
-  border-radius: 2rem;
-  corner-shape: squircle;
+  border-radius: 1rem;
 }
 
 .background-release-card {
