@@ -2,7 +2,7 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { unstable_noStore as noStore } from 'next/cache'
 import { getReleaseById } from '@/lib/db/client'
-import { MarkReleaseSeen } from '../MarkReleaseSeen'
+import { MarkReleaseSeen } from '@/app/releasegrid/MarkReleaseSeen'
 import { ReleasePageClient } from './release-page-client'
 
 export const dynamic = 'force-dynamic'
@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title,
       description,
       type: 'article',
-      url: `/releasegrid/${id}`,
+      url: `/release/${id}`,
     },
     twitter: {
       card: 'summary_large_image',

@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import Link from 'next/link'
-import { ReleaseCard } from './[id]/release-card'
-import { ReleaseDetailModal } from './[id]/release-detail-modal'
+import { ReleaseCard } from '@/app/release/[id]/release-card'
+import { ReleaseDetailModal } from '@/app/release/[id]/release-detail-modal'
 import { MarkReleaseSeen } from './MarkReleaseSeen'
 import type { Release } from '@/lib/db/client'
 
@@ -34,7 +34,7 @@ export function ReleaseGridWithModal({ releases }: ReleaseGridWithModalProps) {
 
   const handleOpen = useCallback((id: string) => {
     setSelectedReleaseId(id)
-    window.history.pushState(null, '', `/releasegrid/${id}`)
+    window.history.pushState(null, '', `/release/${id}`)
   }, [])
 
   const handleClose = useCallback(() => {

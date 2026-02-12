@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
-import { MarkReleaseSeen } from '../MarkReleaseSeen'
+import { MarkReleaseSeen } from '@/app/releasegrid/MarkReleaseSeen'
 import { ReleaseCard } from './release-card'
 import { ReleaseDetailModal } from './release-detail-modal'
 

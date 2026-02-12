@@ -434,7 +434,7 @@ const ReleaseCardContent = memo(function ReleaseCardContent({
       {release.published && release.shared && release.marketing_title && (
         <div className="mt-3 p-3 bg-teal-50 border border-teal-200 rounded">
           <a
-            href={`/releasegrid/${release.id}`}
+            href={`/release/${release.id}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs font-medium text-teal-700 mb-2 hover:text-teal-900 inline-flex items-center gap-1"

@@ -178,7 +178,7 @@ export default function ChangelogPage() {
                       {release.shared && (
                         <div className="mt-4 pt-4 border-t border-gray-100">
                           <a
-                            href={`/releasegrid/${release.id}`}
+                            href={`/release/${release.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-2 px-4 py-2 bg-[#CCFF00] text-[#0E2433] rounded-lg text-sm font-medium hover:bg-[#CCFF00]/80 transition-colors"

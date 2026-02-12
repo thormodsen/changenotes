@@ -133,7 +133,7 @@ export default async function ReleaseDetailPage({ params }: PageProps) {
           {release.shared && (
             <div className="mt-8 pt-6 border-t border-gray-100">
               <Link
-                href={`/releasegrid/${release.id}`}
+                href={`/release/${release.id}`}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-[#CCFF00] text-[#0E2433] rounded-lg text-sm font-medium hover:bg-[#CCFF00]/80 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
