@@ -45,31 +45,55 @@ export function MomentumScrollArea({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams()
   const cardId = searchParams.get('card')
 
-  // Scroll to card when ?card= is present
+  // Initial scroll: center the grid when no ?card=, or scroll to card when ?card= is present
   useLayoutEffect(() => {
-    if (!cardId || !viewportRef.current || !contentRef.current) return
-    const cardEl = document.getElementById(`card-${cardId}`)
-    if (!cardEl) return
-
     const viewport = viewportRef.current
     const content = contentRef.current
-    let el: HTMLElement | null = cardEl
-    let offsetLeft = 0
-    let offsetTop = 0
-    while (el && el !== content) {
-      offsetLeft += el.offsetLeft
-      offsetTop += el.offsetTop
-      el = el.offsetParent as HTMLElement
+    if (!viewport || !content) return
+
+    if (cardId) {
+      const cardEl = document.getElementById(`card-${cardId}`)
+      if (!cardEl) return
+      let el: HTMLElement | null = cardEl
+      let offsetLeft = 0
+      let offsetTop = 0
+      while (el && el !== content) {
+        offsetLeft += el.offsetLeft
+        offsetTop += el.offsetTop
+        el = el.offsetParent as HTMLElement
+      }
+      const cardCenterX = offsetLeft + cardEl.offsetWidth / 2
+      const cardCenterY = offsetTop + cardEl.offsetHeight / 2
+      const targetX = cardCenterX - viewport.clientWidth / 2
+      const targetY = cardCenterY - viewport.clientHeight / 2
+      const bounds = getScrollBounds(content, viewport)
+      setScroll({
+        x: clamp(targetX, 0, bounds.maxX),
+        y: clamp(targetY, 0, bounds.maxY),
+      })
+    } else {
+      // Center the drag-hint element in the viewport on initial load
+      const dragHintEl = document.getElementById('drag-hint')
+      if (dragHintEl) {
+        let el: HTMLElement | null = dragHintEl
+        let offsetLeft = 0
+        let offsetTop = 0
+        while (el && el !== content) {
+          offsetLeft += el.offsetLeft
+          offsetTop += el.offsetTop
+          el = el.offsetParent as HTMLElement
+        }
+        const hintCenterX = offsetLeft + dragHintEl.offsetWidth / 2
+        const hintCenterY = offsetTop + dragHintEl.offsetHeight / 2
+        const targetX = hintCenterX - viewport.clientWidth / 2
+        const targetY = hintCenterY - viewport.clientHeight / 2
+        const bounds = getScrollBounds(content, viewport)
+        setScroll({
+          x: clamp(targetX, 0, bounds.maxX),
+          y: clamp(targetY, 0, bounds.maxY),
+        })
+      }
     }
-    const cardCenterX = offsetLeft + cardEl.offsetWidth / 2
-    const cardCenterY = offsetTop + cardEl.offsetHeight / 2
-    const targetX = cardCenterX - viewport.clientWidth / 2
-    const targetY = cardCenterY - viewport.clientHeight / 2
-    const bounds = getScrollBounds(content, viewport)
-    setScroll({
-      x: clamp(targetX, 0, bounds.maxX),
-      y: clamp(targetY, 0, bounds.maxY),
-    })
   }, [cardId])
 
   const runInertia = useCallback(() => {
