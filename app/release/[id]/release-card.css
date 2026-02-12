@@ -3,11 +3,18 @@
 }
 
 .release-card {
-  border-radius: 32px;
+  border-radius: 16px;
 }
 
-.release-card:not(.release-card--detail) {
-  border-radius: 16px;
+/* Detail cards: full-screen (no radius) on mobile, contained (with radius) on larger screens */
+.release-card--detail {
+  border-radius: 0;
+}
+
+@media (min-width: 640px) {
+  .release-card--detail {
+    border-radius: 32px;
+  }
 }
 
 /* Figma spec: 448×796 aspect ratio, scales to fit container (15% larger) */
