@@ -35,7 +35,7 @@ export function ReleaseDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-[#0E2433]"
+      className="fixed inset-0 z-50 flex flex-col"
       style={{ width: '100dvw', height: '100dvh' }}
       onClick={onClose}
     >

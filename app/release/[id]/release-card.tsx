@@ -301,8 +301,8 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
         )}
 
         {/* 6. Footer illustration */}
-        <motion.div className={`relative w-full overflow-hidden flex-shrink-0 ${
-          variant === 'detail' ? 'h-[140px] min-[480px]:h-[207px]' : 'h-[115px] mt-auto'
+        <motion.div className={`relative w-full overflow-hidden flex-shrink-0 mt-auto ${
+          variant === 'detail' ? 'h-[140px] min-[480px]:h-[207px]' : 'h-[115px]'
         }`}>
           {(() => {
             const Footer = theme.Footer
