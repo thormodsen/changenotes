@@ -211,7 +211,7 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
               <div className="flex flex-col gap-4">
                 {/* 2. Title - stays at top */}
                 <h1
-                  className="text-3xl font-extrabold text-white leading-tight min-[480px]:text-4xl flex-shrink-0"
+                  className="text-3xl font-extrabold text-white leading-tight min-[480px]:text-3xl flex-shrink-0"
                 >
                   {releaseNote.title}
                 </h1>
