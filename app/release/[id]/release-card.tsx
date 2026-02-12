@@ -23,6 +23,8 @@ interface ReleaseCardProps {
   onClose?: () => void
   showDescription?: boolean
   variant?: 'card' | 'detail'
+  /** Show date instead of type badge in mini card header */
+  showDateInHeader?: boolean
 }
 
 const typeConfig: Record<string, { icon: typeof Newspaper; label: string; color: string }> = {
@@ -34,7 +36,7 @@ const typeConfig: Record<string, { icon: typeof Newspaper; label: string; color:
   'Rollback': { icon: PartyPopper, label: 'Rollback', color: '#FFB930' },
 }
 
-export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription = false, variant = 'card' }: ReleaseCardProps) {
+export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription = false, variant = 'card', showDateInHeader = false }: ReleaseCardProps) {
   const config = typeConfig[releaseNote.type] || typeConfig['Update']
   const Icon = config.icon
   const cardRef = useRef<HTMLDivElement>(null)
@@ -135,18 +137,25 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
         animate={hasEntranceAnimation ? { opacity: 1, y: 0, filter: 'blur(0px)' } : undefined}
         style={{ backgroundColor: theme.background }}
         className={`relative overflow-hidden flex flex-col release-card ${variant === 'detail' ? 'release-card--detail' : ''}
-        ${variant === 'detail' ? 'w-full min-w-0 max-w-[672px] !rounded-none' : 'w-full max-w-[200px] aspect-[448/796] min-[480px]:release-card--figma'} ${onCardClick ? 'cursor-pointer' : ''}`}
+        ${variant === 'detail' ? 'w-full max-w-[448px] aspect-[448/960] rounded-[32px]' : 'w-full max-w-[230px] aspect-[448/796] min-[480px]:release-card--figma'} ${onCardClick ? 'cursor-pointer' : ''}`}
       >
-        {/* 1. Header - Type badge */}
+        {/* 1. Header - Type badge or date */}
         <div className={variant === 'detail' ? 'p-4 min-[480px]:p-6' : 'px-2 pt-2'}>
           <div className="flex items-center gap-2">
-            <div
-              className={`rounded-full flex items-center ${variant === 'detail' ? 'px-4 py-2 gap-2' : 'px-2 py-1 gap-1'}`}
-              style={{ backgroundColor: config.color }}
-            >
-              <Icon className={variant === 'detail' ? 'w-4 h-4 text-[#0E2433]' : 'w-3 h-3 text-[#0E2433]'} />
-              <span className={`text-[#0E2433] font-medium leading-[1.4] ${variant === 'detail' ? 'text-[16px]' : 'text-[10px]'}`}>{config.label}</span>
-            </div>
+            {/* Mini card: show date if showDateInHeader, otherwise show type badge */}
+            {variant === 'card' && showDateInHeader ? (
+              <span className="text-white/70 text-[11px] font-medium leading-[1.4]">
+                {formattedDate}
+              </span>
+            ) : (
+              <div
+                className={`rounded-full flex items-center ${variant === 'detail' ? 'px-4 py-2 gap-2' : 'px-2 py-1 gap-1'}`}
+                style={{ backgroundColor: config.color }}
+              >
+                <Icon className={variant === 'detail' ? 'w-4 h-4 text-[#0E2433]' : 'w-4 h-4 text-[#0E2433]'} />
+                <span className={`text-[#0E2433] font-medium leading-[1.4] ${variant === 'detail' ? 'text-[16px]' : 'text-[14px]'}`}>{config.label}</span>
+              </div>
+            )}
             {formattedDate && variant === 'detail' && <span className="text-white text-[16px] font-medium leading-[1.4] px-4 py-2">{formattedDate}</span>}
             {variant === 'detail' && (
               <div className="ml-auto flex items-center gap-2">
@@ -206,12 +215,12 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
         )}
 
         {/* 2. Title */}
-        <div className={variant === 'detail' ? 'px-4 min-[480px]:px-6 pt-4 min-[480px]:pt-0' : 'px-2 pt-2'}>
+        <div className={variant === 'detail' ? 'px-4 min-[480px]:px-6 pt-4 min-[480px]:pt-0' : 'px-3 pt-2'}>
           <h1
             className={`font-extrabold text-white leading-[1.2] ${
               variant === 'detail'
                 ? 'text-[28px] min-[480px]:text-[40px]'
-                : 'text-[16px]'
+                : 'text-[22px] h-[80px] line-clamp-3'
             }`}
           >
             {releaseNote.title}
@@ -244,22 +253,22 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
 
         {/* 4. Why It Matters callout */}
         {releaseNote.whyItMatters && (
-          <div className={variant === 'detail' ? 'px-4 min-[480px]:px-6 pt-8' : 'px-2 pt-2'}>
+          <div className={variant === 'detail' ? 'px-4 min-[480px]:px-6 pt-8' : 'px-3 pt-3'}>
             <div
               className={`overflow-hidden ${
-                variant === 'detail' ? 'rounded-[24px] p-4' : 'rounded-[8px] p-1.5'
+                variant === 'detail' ? 'rounded-[24px] p-4' : 'rounded-[12px] p-2.5'
               }`}
               style={{ backgroundColor: theme.calloutBg }}
             >
-              <div className={variant === 'detail' ? 'flex items-start gap-4' : 'flex items-center gap-1'}>
+              <div className={variant === 'detail' ? 'flex items-start gap-4' : 'flex items-start gap-2'}>
                 <LightBulbs 
-                  width={variant === 'detail' ? 48 : 20} 
-                  height={variant === 'detail' ? 48 : 20} 
+                  width={variant === 'detail' ? 48 : 26} 
+                  height={variant === 'detail' ? 48 : 26} 
                   className="flex-shrink-0"
                 />
                 <p
                   className={`font-normal leading-[1.3] ${
-                    variant === 'detail' ? 'text-[20px]' : 'text-[11px]'
+                    variant === 'detail' ? 'text-[20px]' : 'text-[13px]'
                   }`}
                   style={{ color: theme.calloutTextColor ?? 'white' }}
                 >
@@ -293,7 +302,7 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
 
         {/* 6. Footer illustration */}
         <motion.div className={`relative w-full overflow-hidden flex-shrink-0 ${
-          variant === 'detail' ? 'h-[140px] min-[480px]:h-[207px]' : 'h-[100px] mt-auto'
+          variant === 'detail' ? 'h-[140px] min-[480px]:h-[207px]' : 'h-[115px] mt-auto'
         }`}>
           {(() => {
             const Footer = theme.Footer

@@ -10,11 +10,11 @@
   border-radius: 16px;
 }
 
-/* Figma spec: 448×796 aspect ratio, scales to fit container */
+/* Figma spec: 448×796 aspect ratio, scales to fit container (15% larger) */
 .release-card--figma {
   display: flex;
   width: 100%;
-  max-width: 200px;
+  max-width: 230px;
   aspect-ratio: 448 / 796;
   flex-direction: column;
   justify-content: space-between;

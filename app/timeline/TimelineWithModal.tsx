@@ -3,10 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import Link from 'next/link'
 import { ReleaseCard } from '@/app/release/[id]/release-card'
 import { ReleaseDetailModal } from '@/app/release/[id]/release-detail-modal'
-import { MarkReleaseSeen } from './MarkReleaseSeen'
+import { MarkReleaseSeen } from '@/app/releasegrid/MarkReleaseSeen'
 import type { Release } from '@/lib/db/client'
 
 function toReleaseNote(release: Release) {
@@ -20,11 +19,11 @@ function toReleaseNote(release: Release) {
   }
 }
 
-interface ReleaseGridWithModalProps {
+interface TimelineWithModalProps {
   releases: Release[]
 }
 
-export function ReleaseGridWithModal({ releases }: ReleaseGridWithModalProps) {
+export function TimelineWithModal({ releases }: TimelineWithModalProps) {
   const [selectedReleaseId, setSelectedReleaseId] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
 
@@ -39,7 +38,7 @@ export function ReleaseGridWithModal({ releases }: ReleaseGridWithModalProps) {
 
   const handleClose = useCallback(() => {
     setSelectedReleaseId(null)
-    window.history.replaceState(null, '', '/releasegrid')
+    window.history.replaceState(null, '', '/timeline')
   }, [])
 
   useEffect(() => {
@@ -52,76 +51,55 @@ export function ReleaseGridWithModal({ releases }: ReleaseGridWithModalProps) {
 
   if (releases.length === 0) return null
 
-  const mid = Math.floor(releases.length / 2)
-  const first = releases.slice(0, mid)
-  const second = releases.slice(mid)
   const selectedRelease = selectedReleaseId
     ? releases.find((r) => r.id === selectedReleaseId)
     : null
 
+  // Sort releases by date (newest first on the left)
+  const sortedReleases = [...releases].sort((a, b) => 
+    new Date(b.date).getTime() - new Date(a.date).getTime()
+  )
+
   return (
     <>
-      <div
-        className="w-max"
-        style={{
-          paddingLeft: 16,
-          paddingRight: 16,
-          paddingTop: 16,
-          paddingBottom: 16,
-        }}
-      >
-        <ul
-          className="grid gap-8 w-max"
-          style={{
-            gridTemplateColumns: 'repeat(5, auto)',
-          }}
-        >
-          {first.map((release) => (
-            <li key={release.id} id={`card-${release.id}`}>
-              <div
-                className="block cursor-pointer"
-                onClick={() => handleOpen(release.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    handleOpen(release.id)
-                  }
-                }}
-              >
-                <ReleaseCard releaseNote={toReleaseNote(release)} />
-              </div>
-            </li>
-          ))}
-          <li
-            key="drag-hint"
-            id="drag-hint"
-            className="flex items-center justify-center max-w-[230px]"
+      <div className="flex items-center h-full px-8 gap-6">
+        {/* Timeline hint at start */}
+        <div className="flex-shrink-0 flex flex-col items-center justify-center w-[160px] h-full">
+          <p className="text-white/40 text-sm font-light text-center">
+            ← Newest
+          </p>
+        </div>
+
+        {/* Release cards */}
+        {sortedReleases.map((release) => (
+          <div
+            key={release.id}
+            id={`card-${release.id}`}
+            className="flex-shrink-0"
           >
-            <p className="text-white/40 text-base font-light text-center">
-              Drag to discover our new updates
-            </p>
-          </li>
-          {second.map((release) => (
-            <li key={release.id} id={`card-${release.id}`}>
-              <div
-                className="block cursor-pointer"
-                onClick={() => handleOpen(release.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    handleOpen(release.id)
-                  }
-                }}
-              >
-                <ReleaseCard releaseNote={toReleaseNote(release)} />
-              </div>
-            </li>
-          ))}
-        </ul>
+            <div
+              className="block cursor-pointer"
+              onClick={() => handleOpen(release.id)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  handleOpen(release.id)
+                }
+              }}
+            >
+              <ReleaseCard releaseNote={toReleaseNote(release)} showDateInHeader />
+            </div>
+          </div>
+        ))}
+
+        {/* Timeline hint at end */}
+        <div className="flex-shrink-0 flex flex-col items-center justify-center w-[160px] h-full">
+          <p className="text-white/40 text-sm font-light text-center">
+            Older →
+          </p>
+        </div>
       </div>
 
       {mounted &&

@@ -66,7 +66,7 @@ export function ReleaseDetailModal({
           }}
           aria-label="Arrastra hacia abajo para cerrar"
         >
-          <div className="w-full flex-1 flex flex-col min-h-dvh">
+          <div className="w-full flex items-center justify-center p-4">
             <ReleaseCard
               releaseNote={releaseNote}
               showDescription
