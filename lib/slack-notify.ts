@@ -31,7 +31,7 @@ function buildSlackMessageUrl(channelId: string, messageTs: string, threadTs?: s
 
 /**
  * Send a notification to Slack about newly extracted releases.
- * Uses SLACK_NOTIFY_CHANNEL if set, otherwise falls back to the main channel.
+ * Requires SLACK_NOTIFY_CHANNEL to avoid accidental posting to the ingest channel.
  */
 export async function notifyNewReleases(releases: NotifiableRelease[]): Promise<void> {
   console.log(`[Notify] Called with ${releases.length} releases`)
@@ -42,7 +42,17 @@ export async function notifyNewReleases(releases: NotifiableRelease[]): Promise<
   }
 
   const config = loadSlackConfig()
-  const notifyChannel = process.env.SLACK_NOTIFY_CHANNEL || config.channelId
+  const notifyChannel = process.env.SLACK_NOTIFY_CHANNEL
+  if (!notifyChannel) {
+    console.warn('[Notify] SLACK_NOTIFY_CHANNEL is not set. Skipping notifications to prevent wrong-channel posts.')
+    return
+  }
+  if (notifyChannel === config.channelId) {
+    console.warn(
+      `[Notify] SLACK_NOTIFY_CHANNEL (${notifyChannel}) matches SLACK_CHANNEL_ID (${config.channelId}). Skipping notifications.`
+    )
+    return
+  }
   const baseUrl = getBaseUrl()
   console.log(`[Notify] Sending to channel: ${notifyChannel}, baseUrl: ${baseUrl}`)
 
