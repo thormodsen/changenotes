@@ -131,7 +131,7 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
         initial={hasEntranceAnimation ? { opacity: 0, y: 15, filter: 'blur(10px)' } : false}
         animate={hasEntranceAnimation ? { opacity: 1, y: 0, filter: 'blur(0px)' } : undefined}
         className={`relative bg-[#335FFF] overflow-hidden flex flex-col release-card 
-        ${variant === 'detail' ? 'w-full min-w-0 min-h-dvh !rounded-none' : 'w-full min-w-[288px] max-[479px]:w-[440px] max-[479px]:min-h-[40dvh] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px] min-h-[50dvh] min-[480px]:min-h-[54dvh] !rounded-[3rem]'} ${onCardClick ? 'cursor-pointer' : ''}`}
+        ${variant === 'detail' ? 'w-full min-w-0 min-h-dvh !rounded-none' : 'w-full min-w-[288px] max-[479px]:w-[350px] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px] min-h-[50dvh] !rounded-[3rem]'} ${onCardClick ? 'cursor-pointer' : ''}`}
       >
         <div className={`flex-1 flex flex-col min-h-0 ${variant === 'detail' ? 'max-w-[672px] w-full mx-auto' : ''}`}>
           {/* 1. Header - Type badge, date, close (detail) and share */}

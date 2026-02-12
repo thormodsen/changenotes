@@ -97,7 +97,7 @@ export function ReleaseGridWithModal({ releases }: ReleaseGridWithModalProps) {
           <li
             key="drag-hint"
             id="drag-hint"
-            className="flex items-center justify-center w-full min-[480px]:min-h-[54dvh]"
+            className="flex items-center justify-center w-full min-[480px]:min-h-[54dvh]  max-[480px]:w-[350px]  max-[479px]:pd-[16px]"
           >
             <p className="text-white/40 text-2xl font-light text-center">
               Drag to discover our new updates
