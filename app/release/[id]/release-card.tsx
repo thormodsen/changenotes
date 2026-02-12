@@ -2,7 +2,8 @@
 
 import './release-card.css'
 import { Newspaper, Star, CheckCircle, Zap, Rocket, PartyPopper, Share, X, ExternalLink } from 'lucide-react'
-import { LightBulbs, CourtLines, TennisBall, TennisBallShadow } from '@/app/assets/icons'
+import { LightBulbs } from '@/app/assets/icons'
+import { getReleaseCardTheme } from '@/app/assets/illustrations/release-card-footers'
 import { AnimatePresence, motion } from 'framer-motion'
 import { toPng } from 'html-to-image'
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
@@ -69,6 +70,8 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
     return () => window.removeEventListener('resize', measureLabels)
   }, [])
 
+  const theme = getReleaseCardTheme(releaseNote.id)
+
   const handleShareCard = useCallback(async () => {
     if (!cardRef.current || isSharing) return
 
@@ -79,7 +82,7 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
         pixelRatio: 2,
-        backgroundColor: '#335FFF',
+        backgroundColor: theme.background,
         filter: (node) => {
           if (!(node instanceof HTMLElement)) return true
           return node.dataset.shareButton !== 'true'
@@ -111,14 +114,15 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
     } finally {
       setIsSharing(false)
     }
-  }, [isSharing, releaseNote.id, releaseNote.title])
+  }, [isSharing, releaseNote.id, releaseNote.title, theme.background])
 
   const hasEntranceAnimation = variant === 'card'
   const layoutId = `release-card-${releaseNote.id}`
 
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
+    <AnimatePresence mode="wait" initial={false}>
       <motion.div
+        key={layoutId}
         layout
         layoutId={layoutId}
         ref={cardRef}
@@ -130,8 +134,9 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
         onKeyDown={onCardClick ? (e) => e.key === 'Enter' && onCardClick() : undefined}
         initial={hasEntranceAnimation ? { opacity: 0, y: 15, filter: 'blur(10px)' } : false}
         animate={hasEntranceAnimation ? { opacity: 1, y: 0, filter: 'blur(0px)' } : undefined}
-        className={`relative bg-[#335FFF] overflow-hidden flex flex-col release-card 
-        ${variant === 'detail' ? 'w-full min-w-0 min-h-dvh !rounded-none' : 'w-full min-w-[288px] max-[479px]:w-[350px] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px] min-h-[50dvh]'} ${onCardClick ? 'cursor-pointer' : ''}`}
+        style={{ backgroundColor: theme.background }}
+        className={`relative overflow-hidden flex flex-col release-card 
+        ${variant === 'detail' ? 'w-full min-w-0 min-h-dvh !rounded-none' : 'w-full min-w-[288px] max-[479px]:w-[350px] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px] min-h-[50dvh] !rounded-[3rem]'} ${onCardClick ? 'cursor-pointer' : ''}`}
       >
         <div className={`flex-1 flex flex-col min-h-0 ${variant === 'detail' ? 'max-w-[672px] w-full mx-auto' : ''}`}>
           {/* 1. Header - Type badge, date, close (detail) and share */}
@@ -217,7 +222,10 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
                 </h1>
                 {/* 4. Why It Matters - Callout - distributed in middle */}
                 {releaseNote.whyItMatters && (
-                  <div className="bg-[#294CCC] p-4 why-it-matters-card flex-shrink-0">
+                  <div
+                    className="rounded-3xl p-4 why-it-matters-card flex-shrink-0"
+                    style={{ backgroundColor: theme.calloutBg ?? theme.background }}
+                  >
                     <div className="flex items-center gap-2">
                       <div
                         className="w-[46px] h-[56px] min-w-[46px] min-h-[56px] overflow-hidden"
@@ -282,17 +290,12 @@ export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription
 
         </div>
 
-        {/* 6. Footer - bottom-anchored (court illustration) - full width, not constrained */}
+        {/* 6. Footer - bottom-anchored illustration (theme from Figma Community Concepts) */}
         <motion.div className="relative w-full h-[120px] min-[480px]:h-[160px] overflow-hidden flex-shrink-0">
-          <CourtLines className="absolute inset-0 w-full h-full" />
-          {/* Shadow */}
-          <div className="absolute bottom-[55px] left-[95px] w-[70px] h-[30px] min-[480px]:w-[80px] min-[480px]:h-[35px] overflow-visible">
-            <TennisBallShadow className="w-full h-full" />
-          </div>
-          {/* Ball */}
-          <div className="absolute bottom-[55px] left-[105px] w-[70px] h-[70px] min-[480px]:bottom-[60px] min-[480px]:w-[90px] min-[480px]:h-[90px]">
-            <TennisBall className="w-full h-full" />
-          </div>
+          {(() => {
+            const Footer = theme.Footer
+            return <Footer />
+          })()}
         </motion.div>
       </motion.div>
     </AnimatePresence>

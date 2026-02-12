@@ -29,6 +29,35 @@ export function TennisBallShadow({ className }: { className?: string }) {
   )
 }
 
+/** Padel racket silhouette – pass fill for theme (e.g. blue on green card, pink on pink card). */
+export function PadelRacket({ className, fill = '#708FFF' }: { className?: string; fill?: string }) {
+  return (
+    <svg
+      viewBox="0 0 120 140"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      preserveAspectRatio="xMidYMid meet"
+    >
+      {/* Racket face (oval) */}
+      <ellipse cx="60" cy="55" rx="42" ry="48" fill={fill} />
+      <ellipse cx="60" cy="55" rx="38" ry="44" fill="none" stroke="white" strokeWidth="4" strokeOpacity={0.9} />
+      {/* Handle */}
+      <path
+        d="M38 95 L60 140 L82 95 Q60 92 38 95 Z"
+        fill={fill}
+      />
+      <path
+        d="M42 98 L60 130 L78 98"
+        fill="none"
+        stroke="white"
+        strokeWidth="2"
+        strokeOpacity={0.6}
+      />
+    </svg>
+  )
+}
+
 export function TennisBall({ className }: { className?: string }) {
   return (
     <svg
