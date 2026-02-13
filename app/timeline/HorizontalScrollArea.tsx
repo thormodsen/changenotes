@@ -16,14 +16,11 @@ const DRAG_THRESHOLD_PX = 5
 function getScrollBounds(
   contentEl: HTMLElement,
   viewportEl: HTMLElement
-): { maxX: number; maxY: number } {
-  const contentWidth = contentEl.offsetWidth
-  const contentHeight = contentEl.offsetHeight
+): { maxX: number } {
+  const contentWidth = contentEl.scrollWidth
   const viewportWidth = viewportEl.clientWidth
-  const viewportHeight = viewportEl.clientHeight
   return {
     maxX: Math.max(0, contentWidth - viewportWidth),
-    maxY: Math.max(0, contentHeight - viewportHeight),
   }
 }
 
@@ -31,13 +28,13 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max)
 }
 
-export function MomentumScrollArea({ children }: { children: ReactNode }) {
+export function HorizontalScrollArea({ children }: { children: ReactNode }) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
-  const [scroll, setScroll] = useState({ x: 0, y: 0 })
-  const velocityRef = useRef({ x: 0, y: 0 })
-  const lastPosRef = useRef({ x: 0, y: 0 })
-  const startPosRef = useRef({ x: 0, y: 0 })
+  const [scrollX, setScrollX] = useState(0)
+  const velocityRef = useRef(0)
+  const lastPosRef = useRef(0)
+  const startPosRef = useRef(0)
   const lastTimeRef = useRef(0)
   const isDraggingRef = useRef(false)
   const hasDraggedRef = useRef(false)
@@ -45,31 +42,29 @@ export function MomentumScrollArea({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams()
   const cardId = searchParams.get('card')
 
-  // Scroll to card when ?card= is present
+  // Initial scroll: center viewport or scroll to specific card
   useLayoutEffect(() => {
-    if (!cardId || !viewportRef.current || !contentRef.current) return
-    const cardEl = document.getElementById(`card-${cardId}`)
-    if (!cardEl) return
-
     const viewport = viewportRef.current
     const content = contentRef.current
-    let el: HTMLElement | null = cardEl
-    let offsetLeft = 0
-    let offsetTop = 0
-    while (el && el !== content) {
-      offsetLeft += el.offsetLeft
-      offsetTop += el.offsetTop
-      el = el.offsetParent as HTMLElement
+    if (!viewport || !content) return
+
+    if (cardId) {
+      const cardEl = document.getElementById(`card-${cardId}`)
+      if (!cardEl) return
+      let el: HTMLElement | null = cardEl
+      let offsetLeft = 0
+      while (el && el !== content) {
+        offsetLeft += el.offsetLeft
+        el = el.offsetParent as HTMLElement
+      }
+      const cardCenterX = offsetLeft + cardEl.offsetWidth / 2
+      const targetX = cardCenterX - viewport.clientWidth / 2
+      const bounds = getScrollBounds(content, viewport)
+      setScrollX(clamp(targetX, 0, bounds.maxX))
+    } else {
+      // Start scrolled to the left (newest cards are on the left)
+      setScrollX(0)
     }
-    const cardCenterX = offsetLeft + cardEl.offsetWidth / 2
-    const cardCenterY = offsetTop + cardEl.offsetHeight / 2
-    const targetX = cardCenterX - viewport.clientWidth / 2
-    const targetY = cardCenterY - viewport.clientHeight / 2
-    const bounds = getScrollBounds(content, viewport)
-    setScroll({
-      x: clamp(targetX, 0, bounds.maxX),
-      y: clamp(targetY, 0, bounds.maxY),
-    })
   }, [cardId])
 
   const runInertia = useCallback(() => {
@@ -78,25 +73,20 @@ export function MomentumScrollArea({ children }: { children: ReactNode }) {
     if (!viewport || !content) return
 
     const tick = () => {
-      let { x: vx, y: vy } = velocityRef.current
-      if (Math.abs(vx) < MIN_VELOCITY && Math.abs(vy) < MIN_VELOCITY) {
+      let vx = velocityRef.current
+      if (Math.abs(vx) < MIN_VELOCITY) {
         if (rafRef.current) cancelAnimationFrame(rafRef.current)
         return
       }
 
-      setScroll((prev) => {
+      setScrollX((prev) => {
         const bounds = getScrollBounds(content, viewport)
-        const nextX = clamp(prev.x - vx, 0, bounds.maxX)
-        const nextY = clamp(prev.y - vy, 0, bounds.maxY)
-        velocityRef.current = {
-          x: nextX !== prev.x ? vx * FRICTION : 0,
-          y: nextY !== prev.y ? vy * FRICTION : 0,
-        }
-        return { x: nextX, y: nextY }
+        const nextX = clamp(prev - vx, 0, bounds.maxX)
+        velocityRef.current = nextX !== prev ? vx * FRICTION : 0
+        return nextX
       })
 
-      vx = velocityRef.current.x
-      vy = velocityRef.current.y
+      vx = velocityRef.current
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
@@ -106,37 +96,32 @@ export function MomentumScrollArea({ children }: { children: ReactNode }) {
     if (e.button !== 0) return
     isDraggingRef.current = true
     hasDraggedRef.current = false
-    lastPosRef.current = { x: e.clientX, y: e.clientY }
-    startPosRef.current = { x: e.clientX, y: e.clientY }
+    lastPosRef.current = e.clientX
+    startPosRef.current = e.clientX
     lastTimeRef.current = performance.now()
-    velocityRef.current = { x: 0, y: 0 }
+    velocityRef.current = 0
     ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
   }, [])
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!isDraggingRef.current) return
-    const { x: startX, y: startY } = startPosRef.current
-    const dist = Math.hypot(e.clientX - startX, e.clientY - startY)
+    const dist = Math.abs(e.clientX - startPosRef.current)
     if (!hasDraggedRef.current && dist > DRAG_THRESHOLD_PX) {
       hasDraggedRef.current = true
     }
     if (!hasDraggedRef.current) return
     const now = performance.now()
     const dt = Math.max(now - lastTimeRef.current, 1)
-    const dx = e.clientX - lastPosRef.current.x
-    const dy = e.clientY - lastPosRef.current.y
-    lastPosRef.current = { x: e.clientX, y: e.clientY }
+    const dx = e.clientX - lastPosRef.current
+    lastPosRef.current = e.clientX
     lastTimeRef.current = now
-    velocityRef.current = { x: (dx / dt) * 16, y: (dy / dt) * 16 }
-    setScroll((prev) => {
+    velocityRef.current = (dx / dt) * 16
+    setScrollX((prev) => {
       const viewport = viewportRef.current
       const content = contentRef.current
       if (!viewport || !content) return prev
       const bounds = getScrollBounds(content, viewport)
-      return {
-        x: clamp(prev.x - dx, 0, bounds.maxX),
-        y: clamp(prev.y - dy, 0, bounds.maxY),
-      }
+      return clamp(prev - dx, 0, bounds.maxX)
     })
   }, [])
 
@@ -162,10 +147,9 @@ export function MomentumScrollArea({ children }: { children: ReactNode }) {
     const content = contentRef.current
     if (!viewport || !content) return
     const bounds = getScrollBounds(content, viewport)
-    setScroll((prev) => ({
-      x: clamp(prev.x + e.deltaX, 0, bounds.maxX),
-      y: clamp(prev.y + e.deltaY, 0, bounds.maxY),
-    }))
+    // Use deltaX for horizontal scroll, or deltaY if no horizontal scroll detected
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
+    setScrollX((prev) => clamp(prev + delta, 0, bounds.maxX))
   }, [])
 
   return (
@@ -181,9 +165,9 @@ export function MomentumScrollArea({ children }: { children: ReactNode }) {
     >
       <div
         ref={contentRef}
-        className="inline-block min-w-0 will-change-transform"
+        className="inline-flex items-center h-full will-change-transform"
         style={{
-          transform: `translate(${-scroll.x}px, ${-scroll.y}px)`,
+          transform: `translateX(${-scrollX}px)`,
         }}
       >
         {children}

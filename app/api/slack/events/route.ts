@@ -170,7 +170,6 @@ export async function POST(request: NextRequest) {
     console.log(`[Events] Event channel: ${eventChannel}, configured: ${config.channelId}`)
 
     if (eventChannel !== config.channelId) {
-      console.log('[Events] Ignoring event from different channel')
       return NextResponse.json({ ok: true })
     }
 

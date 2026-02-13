@@ -1,12 +1,12 @@
 'use client'
 
 import './release-card.css'
-import { Newspaper, Star, CheckCircle, Zap, Rocket, PartyPopper, Share } from 'lucide-react'
-import { CourtLines, TennisBall, TennisBallShadow } from '@/app/assets/icons'
+import { Newspaper, Star, CheckCircle, Zap, Rocket, PartyPopper, Share, X } from 'lucide-react'
+import { LightBulbs } from '@/app/assets/icons'
+import { getReleaseCardTheme } from '@/app/assets/illustrations/release-card-footers'
 import { AnimatePresence, motion } from 'framer-motion'
 import { toPng } from 'html-to-image'
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 interface ReleaseNote {
   id: string
@@ -19,6 +19,14 @@ interface ReleaseNote {
 
 interface ReleaseCardProps {
   releaseNote: ReleaseNote
+  onCardClick?: () => void
+  onClose?: () => void
+  showDescription?: boolean
+  variant?: 'card' | 'detail'
+  /** Show date instead of type badge in mini card header */
+  showDateInHeader?: boolean
+  /** Hide share button, close button, and CTA for screenshot purposes */
+  screenshotMode?: boolean
 }
 
 const typeConfig: Record<string, { icon: typeof Newspaper; label: string; color: string }> = {
@@ -30,7 +38,7 @@ const typeConfig: Record<string, { icon: typeof Newspaper; label: string; color:
   'Rollback': { icon: PartyPopper, label: 'Rollback', color: '#FFB930' },
 }
 
-export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
+export function ReleaseCard({ releaseNote, onCardClick, onClose, showDescription = false, variant = 'card', showDateInHeader = false, screenshotMode = false }: ReleaseCardProps) {
   const config = typeConfig[releaseNote.type] || typeConfig['Update']
   const Icon = config.icon
   const cardRef = useRef<HTMLDivElement>(null)
@@ -52,6 +60,14 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
       year: 'numeric',
     })
     : ''
+  // Shorter format for mini cards (e.g., "Jan 30, 2026")
+  const formattedDateShort = !isNaN(dateValue.getTime())
+    ? dateValue.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+    : ''
 
   useLayoutEffect(() => {
     const measureLabels = () => {
@@ -65,6 +81,8 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
     return () => window.removeEventListener('resize', measureLabels)
   }, [])
 
+  const theme = getReleaseCardTheme(releaseNote.id)
+
   const handleShareCard = useCallback(async () => {
     if (!cardRef.current || isSharing) return
 
@@ -75,7 +93,7 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
         pixelRatio: 2,
-        backgroundColor: '#335FFF',
+        backgroundColor: theme.background,
         filter: (node) => {
           if (!(node instanceof HTMLElement)) return true
           return node.dataset.shareButton !== 'true'
@@ -107,145 +125,201 @@ export function ReleaseCard({ releaseNote }: ReleaseCardProps) {
     } finally {
       setIsSharing(false)
     }
-  }, [isSharing, releaseNote.id, releaseNote.title])
+  }, [isSharing, releaseNote.id, releaseNote.title, theme.background])
+
+  const hasEntranceAnimation = variant === 'card'
+  const layoutId = `release-card-${releaseNote.id}`
 
   return (
-    <motion.div
-      ref={cardRef}
-      initial={{ opacity: 0, y: 15, filter: 'blur(10px)' }}
-      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="relative bg-[#335FFF] overflow-hidden w-full min-w-[288px] min-[480px]:min-w-[448px] min-[480px]:max-w-[448px] min-h-[50dvh] min-[480px]:min-h-[65dvh] flex flex-col release-card"
-    >
-
-      {/* 1. Header - Type badge and date (top-anchored) */}
-      <div className="flex items-center gap-4 flex-shrink-0 p-4 min-[480px]:p-7 pb-0 min-[480px]:pb-0">
-        <div
-          className="rounded-full px-4 py-2 flex items-center gap-2"
-          style={{ backgroundColor: config.color }}
-        >
-          <Icon className="w-4 h-4 text-[#0E2433]" />
-          <span className="text-[#0E2433] text-sm font-normal">{config.label}</span>
-        </div>
-        {formattedDate && <span className="text-white text-sm font-normal">{formattedDate}</span>}
-        <motion.button
-          layout
-          style={{ originX: 1 }}
-          type="button"
-          onClick={handleShareCard}
-          disabled={isSharing}
-          data-share-button="true"
-          className="share-button relative ml-auto inline-flex items-center gap-2 max-[374px]:gap-0 rounded-full bg-white/20 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/30 disabled:cursor-not-allowed disabled:opacity-70"
-          transition={{ layout: { duration: 0.22, ease: 'easeOut' } }}
-        >
-          <span className="pointer-events-none absolute opacity-0 whitespace-nowrap">
-            <span ref={shareLabelRef}>Share</span>
-            <span ref={sharingLabelRef}>Sharing...</span>
-          </span>
-          <Share className="h-4 w-4" />
-          <motion.span
-            className="relative inline-flex overflow-hidden whitespace-nowrap max-[374px]:hidden"
-            initial={false}
-            animate={{ width: isSharing ? labelWidths.sharing : labelWidths.share }}
-            transition={{ duration: 0.1, ease: 'easeInOut' }}
-          >
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.span
-                key={isSharing ? 'sharing' : 'share'}
-                initial={{ y: 4, opacity: 0, filter: 'blur(10px)' }}
-                animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
-                exit={{ y: -4, opacity: 0, filter: 'blur(10px)' }}
-                transition={{ duration: 0.12, ease: 'easeInOut' }}
-                className="inline-block"
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={layoutId}
+        layout
+        layoutId={layoutId}
+        ref={cardRef}
+        transition={{ duration: 0.15, ease: [0.075, 0.82, 0.165, 1], layout: { duration: 0.3, ease: [0.075, 0.82, 0.165, 1] } }}
+        whileTap={variant === 'card' ? { scale: 0.98 } : undefined}
+        role={onCardClick ? 'button' : undefined}
+        tabIndex={onCardClick ? 0 : undefined}
+        onClick={onCardClick}
+        onKeyDown={onCardClick ? (e) => e.key === 'Enter' && onCardClick() : undefined}
+        initial={hasEntranceAnimation ? { opacity: 0, y: 15, filter: 'blur(10px)' } : false}
+        animate={hasEntranceAnimation ? { opacity: 1, y: 0, filter: 'blur(0px)' } : undefined}
+        style={{ backgroundColor: theme.background }}
+        className={`relative overflow-hidden flex flex-col release-card ${variant === 'detail' ? 'release-card--detail' : ''}
+        ${variant === 'detail' ? 'w-full h-dvh sm:h-auto sm:max-w-[448px] sm:aspect-[448/960] sm:rounded-[32px]' : 'w-full max-w-[230px] aspect-[448/796] min-[480px]:release-card--figma'} ${onCardClick ? 'cursor-pointer' : ''}`}
+      >
+        {/* 1. Header - Type badge or date */}
+        <div className={variant === 'detail' ? 'p-4 min-[480px]:p-6' : 'px-2 pt-2'}>
+          <div className="flex items-center gap-2">
+            {/* Mini card: show date if showDateInHeader, otherwise show type badge */}
+            {variant === 'card' && showDateInHeader ? (
+              <span className="text-white/70 text-[11px] font-medium leading-[1.4]">
+                {formattedDateShort}
+              </span>
+            ) : (
+              <div
+                className={`rounded-full flex items-center ${variant === 'detail' ? 'px-4 py-2 gap-2' : 'px-2 py-1 gap-1'}`}
+                style={{ backgroundColor: config.color }}
               >
-                {isSharing ? 'Sharing...' : 'Share'}
-              </motion.span>
-            </AnimatePresence>
-          </motion.span>
-        </motion.button>
-      </div>
-      {shareError && (
-        <p className="px-4 min-[480px]:px-7 pt-2 text-sm text-red-100">{shareError}</p>
-      )}
-
-      {/* Middle content: Header, Description, Callout, CTA */}
-      <div className="flex gap-6 flex-col px-4 min-[480px]:px-7 py-4 min-[480px]:py-6 flex-1 min-h-0 justify-between">
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-4">
-            {/* 2. Title - stays at top */}
-            <h1 className="text-3xl font-extrabold text-white leading-tight min-[480px]:text-4xl flex-shrink-0">
-              {releaseNote.title}
-            </h1>
-
-            {/* 3. Description - distributed in middle */}
-            {releaseNote.description && (
-              <p className="text-base font-light text-white leading-relaxed min-[480px]:text-xl flex-shrink-0">
-                {releaseNote.description}
-              </p>
+                <Icon className={variant === 'detail' ? 'w-4 h-4 text-[#0E2433]' : 'w-4 h-4 text-[#0E2433]'} />
+                <span className={`text-[#0E2433] font-medium leading-[1.4] ${variant === 'detail' ? 'text-[16px]' : 'text-[14px]'}`}>{config.label}</span>
+              </div>
+            )}
+            {formattedDate && variant === 'detail' && <span className="text-white text-[16px] font-medium leading-[1.4] px-4 py-2">{formattedDate}</span>}
+            {variant === 'detail' && !screenshotMode && (
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleShareCard()
+                  }}
+                  disabled={isSharing}
+                  data-share-button="true"
+                  className="share-button relative inline-flex items-center gap-2 max-[400px]:gap-0 rounded-full bg-[#708FFF] px-4 py-2 text-[16px] font-medium leading-[1.4] text-white transition hover:bg-[#5A7AE6] disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  <span className="pointer-events-none absolute opacity-0 whitespace-nowrap">
+                    <span ref={shareLabelRef}>Share</span>
+                    <span ref={sharingLabelRef}>Sharing...</span>
+                  </span>
+                  <Share className="h-4 w-4" />
+                  <motion.span
+                    className="relative inline-flex overflow-hidden whitespace-nowrap max-[400px]:hidden"
+                    initial={false}
+                    animate={{ width: isSharing ? labelWidths.sharing : labelWidths.share }}
+                    transition={{ duration: 0.1, ease: [0.075, 0.82, 0.165, 1] }}
+                  >
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      <motion.span
+                        key={isSharing ? 'sharing' : 'share'}
+                        initial={{ y: 4, opacity: 0, filter: 'blur(10px)' }}
+                        animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
+                        exit={{ y: -4, opacity: 0, filter: 'blur(10px)' }}
+                        transition={{ duration: 0.12, ease: [0.075, 0.82, 0.165, 1] }}
+                        className="inline-block"
+                      >
+                        {isSharing ? 'Sharing...' : 'Share'}
+                      </motion.span>
+                    </AnimatePresence>
+                  </motion.span>
+                </button>
+                <button
+                  type="button"
+                  aria-label="Close"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onClose?.()
+                  }}
+                  className="inline-flex items-center justify-center rounded-full bg-white/20 p-2 text-white transition hover:bg-white/30"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             )}
           </div>
+        </div>
 
-        {/* 4. Why It Matters - Callout - distributed in middle */}
+        {variant === 'detail' && shareError && (
+          <p className="px-4 min-[480px]:px-7 pt-2 text-sm text-red-100">{shareError}</p>
+        )}
+
+        {/* 2. Title */}
+        <div className={variant === 'detail' ? 'px-4 min-[480px]:px-6 pt-4 min-[480px]:pt-0' : 'px-3 pt-2'}>
+          <h1
+            className={`font-extrabold text-white leading-[1.2] ${
+              variant === 'detail'
+                ? 'text-[28px] min-[480px]:text-[40px]'
+                : 'text-[22px] h-[80px] line-clamp-3'
+            }`}
+          >
+            {releaseNote.title}
+          </h1>
+        </div>
+
+        {/* 3. Description - only for detail */}
+        {variant === 'detail' && (
+          <motion.div
+            className="px-4 min-[480px]:px-6 pt-4"
+            initial={false}
+            animate={{
+              opacity: showDescription && releaseNote.description ? 1 : 0,
+            }}
+            transition={{ duration: 0.35, ease: [0.075, 0.82, 0.165, 1] }}
+          >
+            {releaseNote.description && (
+              <motion.p
+                className="text-[20px] font-normal text-white leading-[1.4]"
+                initial={showDescription ? { opacity: 0, y: 8 } : false}
+                animate={showDescription ? { opacity: 1, y: 0 } : { opacity: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.35, ease: [0.075, 0.82, 0.165, 1], delay: 0.08 }}
+              >
+                {releaseNote.description}
+              </motion.p>
+            )}
+          </motion.div>
+        )}
+
+        {/* 4. Why It Matters callout */}
         {releaseNote.whyItMatters && (
-          <div className="bg-[#294CCC] rounded-3xl p-4 why-it-matters-card flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="flex-shrink-0 overflow-visible" style={{ width: '46px', height: '56px' }}>
-                <DotLottieReact
-                  src="/lotties/LightBulb-10s.lottie"
-                  loop
-                  autoplay
-                  speed={0.9}
-                  style={{ width: '100%', height: '100%' }}
+          <div className={variant === 'detail' ? 'px-4 min-[480px]:px-6 pt-8' : 'px-3 pt-3'}>
+            <div
+              className={`overflow-hidden ${
+                variant === 'detail' ? 'rounded-[24px] p-4' : 'rounded-[12px] p-2.5'
+              }`}
+              style={{ backgroundColor: theme.calloutBg }}
+            >
+              <div className={variant === 'detail' ? 'flex items-start gap-4' : 'flex items-start gap-2'}>
+                <LightBulbs 
+                  width={variant === 'detail' ? 48 : 26} 
+                  height={variant === 'detail' ? 48 : 26} 
+                  className="flex-shrink-0"
                 />
+                <p
+                  className={`font-normal leading-[1.3] ${
+                    variant === 'detail' ? 'text-[20px]' : 'text-[13px]'
+                  }`}
+                  style={{ color: theme.calloutTextColor ?? 'white' }}
+                >
+                  {releaseNote.whyItMatters}
+                </p>
               </div>
-              <p className="text-white opacity-85 text-base font-light min-[480px]:text-lg">{releaseNote.whyItMatters}</p>
             </div>
           </div>
         )}
-        </div>
 
+        {/* 5. CTA - only for detail, hidden in screenshot mode */}
+        {variant === 'detail' && !screenshotMode && (
+          <div className="px-4 min-[480px]:px-6 pt-8 pb-4 min-[480px]:pb-8">
+            <motion.a
+              key="learn-more"
+              initial={{ opacity: 0, y: 10, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: 1, filter: 'blur(10px)' }}
+              transition={{ duration: 0.2, ease: [0.075, 0.82, 0.165, 1] }}
+              href={`/changelog/${releaseNote.id}`}
+              className="release-card-button block w-full text-center rounded-full px-4 py-3 bg-white text-[#0E2433] font-semibold text-[20px] leading-[1.4]"
+              onClick={(e) => {
+                e.stopPropagation()
+                onClose?.()
+              }}
+            >
+              Learn more
+            </motion.a>
+          </div>
+        )}
 
-
-
-        {/* 5. CTA - stays above footer */}
-        <a
-          href={`/changelog/${releaseNote.id}`}
-          className="block bg-white w-full text-center rounded-full py-3 release-card-button flex-shrink-0"
-        >
-          <span className="text-[#0E2433] font-semibold text-xl">Learn more</span>
-        </a>
-      </div>
-
-      {/* 6. Footer - bottom-anchored */}
-      <div className="relative w-full h-[120px] min-[480px]:h-[160px] overflow-hidden flex-shrink-0 z-[-1]">
-        <CourtLines className="absolute inset-0 w-full h-full" />
-        {/* Shadow - slides in, no rotation */}
-        <motion.div
-          className="absolute bottom-[55px] left-[95px] w-[70px] h-[30px] min-[480px]:w-[80px] min-[480px]:h-[35px] overflow-visible"
-          initial={{ x: -250 }}
-          animate={{ x: 0 }}
-          transition={{
-            delay: 2,
-            duration: 0.8,
-            ease: [0.25, 0.46, 0.45, 0.94],
-          }}
-        >
-          <TennisBallShadow className="w-full h-full" />
+        {/* 6. Footer illustration */}
+        <motion.div className={`relative w-full overflow-hidden flex-shrink-0 mt-auto ${
+          variant === 'detail' ? 'h-[140px] min-[480px]:h-[207px]' : 'h-[115px]'
+        }`}>
+          {(() => {
+            const Footer = theme.Footer
+            return <Footer />
+          })()}
         </motion.div>
-        {/* Ball - slides in with rotation */}
-        <motion.div
-          className="absolute bottom-[55px] left-[105px] w-[70px] h-[70px] min-[480px]:bottom-[60px] min-[480px]:w-[90px] min-[480px]:h-[90px]"
-          initial={{ x: -250, rotate: 0 }}
-          animate={{ x: 0, rotate: 450 }}
-          transition={{
-            delay: 2,
-            duration: 0.8,
-            ease: [0.25, 0.46, 0.45, 0.94],
-          }}
-        >
-          <TennisBall className="w-full h-full" />
-        </motion.div>
-      </div>
-    </motion.div>
+      </motion.div>
+    </AnimatePresence>
   )
 }

@@ -3,13 +3,12 @@ import {
   initializeSchema,
   getExistingReleaseMessageIds,
   getKnownThreadIds,
-  insertRelease,
   deleteReleasesForMessage,
 } from '@/lib/db/client'
-import { loadSlackConfig } from '@/lib/config'
-import { fetchSlackMessages, fetchMissingParents, fetchRecentThreadReplies, type SlackApiMessage } from '@/lib/slack'
-import { extractReleasesFromMessages } from '@/lib/extraction'
-import { notifyNewReleases, type NotifiableRelease } from '@/lib/slack-notify'
+import { loadLangfuseConfig, loadSlackConfig } from '@/lib/config'
+import { fetchSlackMessages, fetchMissingParents, fetchRecentThreadReplies } from '@/lib/slack'
+import { processSingleMessage } from '@/lib/process-message'
+import { fetchPrompt } from '@/lib/langfuse'
 import { apiSuccess, apiServerError } from '@/lib/api-response'
 
 interface SyncResult {
@@ -100,25 +99,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Include parent messages for context even if already extracted
-    // (needed for classification and extraction of thread replies)
-    const parentTsNeeded = new Set<string>()
-    for (const msg of allMessages) {
-      if (newMessageIds.has(msg.ts) && msg.thread_ts && msg.thread_ts !== msg.ts) {
-        parentTsNeeded.add(msg.thread_ts)
-      }
-    }
-
-    const messagesToProcess: SlackApiMessage[] = []
-    for (const msg of allMessages) {
-      if (newMessageIds.has(msg.ts) || parentTsNeeded.has(msg.ts)) {
-        messagesToProcess.push(msg)
-      }
-    }
-
-    console.log(
-      `Processing ${newMessageIds.size} new messages (${parentTsNeeded.size} parents for context, ${editedMessageIds.length} edited)`
-    )
+    console.log(`Processing ${newMessageIds.size} new messages (${editedMessageIds.length} edited)`)
 
     const alreadyExtracted = allMessages.length - newMessageIds.size
 
@@ -130,44 +111,46 @@ export async function POST(request: NextRequest) {
         extracted: 0,
         skipped: 0,
         edited: 0,
-        promptVersion: 'n/a',
+        promptVersion: 'unknown',
       })
     }
 
-    const { releases, promptVersion, skippedIds, errors } = await extractReleasesFromMessages(
-      messagesToProcess,
-      slackConfig.channelId
-    )
-
-    // Only insert releases for new messages (not context-only parents)
-    const insertedReleases: NotifiableRelease[] = []
-    for (const release of releases) {
-      if (!newMessageIds.has(release.messageId)) {
-        continue // Skip releases for context-only parent messages
-      }
-      const id = await insertRelease(release)
-      if (id) {
-        insertedReleases.push({
-          id,
-          title: release.title,
-          description: release.description,
-          messageTs: release.messageId,
-          channelId: release.channelId,
-          threadTs: release.threadTs,
-        })
-      }
+    // Best-effort prompt version (for UI reporting)
+    let promptVersion = 'unknown'
+    try {
+      const prompt = await fetchPrompt(loadLangfuseConfig(), 'release-extraction')
+      if (prompt?.version) promptVersion = prompt.version
+    } catch {
+      // Ignore prompt lookup failures; sync can still continue.
     }
 
-    if (insertedReleases.length > 0) {
-      await notifyNewReleases(insertedReleases)
+    // Incremental processing: extract + insert one message at a time.
+    const messagesToProcess = allMessages
+      .filter((msg) => newMessageIds.has(msg.ts))
+      .sort((a, b) => parseFloat(a.ts) - parseFloat(b.ts))
+
+    let extracted = 0
+    let skipped = 0
+    const errors: string[] = []
+
+    for (const message of messagesToProcess) {
+      const result = await processSingleMessage(message, slackConfig.channelId)
+
+      if (result.reason === 'extracted' || result.reason === 'edited_reextracted') {
+        extracted += result.releases?.length ?? 0
+      } else if (result.reason === 'not_release') {
+        skipped += 1
+      } else if (result.reason === 'error') {
+        errors.push(`Message ${message.ts}: ${result.error || 'Unknown error'}`)
+      }
     }
 
     return apiSuccess<SyncResult>({
       fetched: allMessages.length,
       alreadyExtracted,
       newMessages: newMessageIds.size,
-      extracted: insertedReleases.length,
-      skipped: skippedIds.length,
+      extracted,
+      skipped,
       edited: editedMessageIds.length,
       promptVersion,
       errors: errors.length > 0 ? errors : undefined,
