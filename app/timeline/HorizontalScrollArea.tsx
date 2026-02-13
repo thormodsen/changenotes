@@ -5,6 +5,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useEffect,
   type ReactNode,
 } from 'react'
 import { useSearchParams } from 'next/navigation'
@@ -28,7 +29,19 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max)
 }
 
-export function HorizontalScrollArea({ children }: { children: ReactNode }) {
+interface HorizontalScrollAreaProps {
+  children: ReactNode
+  /** Callback when scroll position changes */
+  onScrollChange?: (scrollX: number, maxScrollX: number) => void
+  /** External scroll position to sync to */
+  externalScrollX?: number
+}
+
+export function HorizontalScrollArea({
+  children,
+  onScrollChange,
+  externalScrollX,
+}: HorizontalScrollAreaProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const [scrollX, setScrollX] = useState(0)
@@ -151,6 +164,25 @@ export function HorizontalScrollArea({ children }: { children: ReactNode }) {
     const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
     setScrollX((prev) => clamp(prev + delta, 0, bounds.maxX))
   }, [])
+
+  // Report scroll changes to parent
+  useEffect(() => {
+    const viewport = viewportRef.current
+    const content = contentRef.current
+    if (!viewport || !content || !onScrollChange) return
+    const bounds = getScrollBounds(content, viewport)
+    onScrollChange(scrollX, bounds.maxX)
+  }, [scrollX, onScrollChange])
+
+  // Sync external scroll position
+  useEffect(() => {
+    if (externalScrollX === undefined) return
+    const viewport = viewportRef.current
+    const content = contentRef.current
+    if (!viewport || !content) return
+    const bounds = getScrollBounds(content, viewport)
+    setScrollX(clamp(externalScrollX, 0, bounds.maxX))
+  }, [externalScrollX])
 
   return (
     <div
