@@ -78,23 +78,32 @@ export function Minimap({
   // Calculate the track width (container width minus padding on both sides)
   const trackWidth = containerWidth - PADDING_PX * 2
 
-  // Handle click/drag on minimap - accounting for padding
+  // Bars layout: same as render logic
+  const totalBars = Math.max(itemCount * 2, 60)
+  const BAR_WIDTH_PX = 1.5
+  const GAP_PX = 2
+  const barsTotalWidth = totalBars * BAR_WIDTH_PX + (totalBars - 1) * GAP_PX
+  const barsStartPx = PADDING_PX + (trackWidth - barsTotalWidth) / 2
+  const barsEndPx = barsStartPx + barsTotalWidth
+
+  // Handle click/drag on minimap - map to bars area, not full track
   const handleInteraction = useCallback(
     (clientX: number) => {
       const container = containerRef.current
       if (!container) return
 
       const rect = container.getBoundingClientRect()
-      // Calculate position relative to the track (not the full container)
-      const relativeX = clientX - rect.left - PADDING_PX
-      const trackWidth = rect.width - PADDING_PX * 2
-      const percentage = Math.max(0, Math.min(1, relativeX / trackWidth))
-      
-      // Calculate target scroll position
+      const trackWidthRect = rect.width - PADDING_PX * 2
+      const barsTotalWidthRect = totalBars * BAR_WIDTH_PX + (totalBars - 1) * GAP_PX
+      const barsStartRect = PADDING_PX + (trackWidthRect - barsTotalWidthRect) / 2
+
+      const relativeX = clientX - rect.left - barsStartRect
+      const percentage = Math.max(0, Math.min(1, relativeX / barsTotalWidthRect))
+
       const targetScrollX = percentage * maxScrollX
       onNavigate(targetScrollX)
     },
-    [maxScrollX, onNavigate]
+    [maxScrollX, onNavigate, totalBars]
   )
 
   const handlePointerDown = useCallback(
@@ -119,8 +128,11 @@ export function Minimap({
     ;(e.target as HTMLElement).releasePointerCapture?.(e.pointerId)
   }, [])
 
-  // Calculate indicator position in pixels (for precise alignment)
-  const indicatorLeftPx = PADDING_PX + scrollProgress * trackWidth
+  // Calculate indicator position - align with actual bars start/end
+  const indicatorLeftPx = Math.max(
+    barsStartPx,
+    Math.min(barsEndPx, barsStartPx + scrollProgress * barsTotalWidth)
+  )
 
   // Calculate current item index based on scroll progress
   const currentItemIndex = Math.round(scrollProgress * Math.max(0, itemCount - 1))
